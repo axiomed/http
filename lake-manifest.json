@@ -1,0 +1,12 @@
+{"version": 6,
+ "packagesDir": "lake-packages",
+ "packages":
+ [{"git":
+   {"url": "https://github.com/algebraic-sofia/soda.git",
+    "subDir?": null,
+    "rev": "41c34bb9472b700dd6682dd37f3f0dfae45ed947",
+    "opts": {},
+    "name": "soda",
+    "inputRev?": null,
+    "inherited": false}}],
+ "name": "Http"}
