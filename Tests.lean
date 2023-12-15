@@ -1,2 +1,5 @@
+import «Tests».Data.Headers
+
 def main : IO Unit :=
-  IO.println s!"Hello, wordl!"
+  let all := List.all tests (fun res => res)
+  IO.println all

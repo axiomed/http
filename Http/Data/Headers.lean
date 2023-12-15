@@ -30,6 +30,9 @@ def Headers.add (headers : Headers) (name : String) (value : String) : Headers :
 def Headers.with (name: String) (value: String) (headers: Headers) : Headers :=
   headers.add name value
 
+def Headers.isEmpty (headers : Headers) : Bool :=
+  headers.headers.isEmpty
+
 -- | Parse a single header key-value pair
 def parseHeader : Grape.Grape (String × String) := do
   let headerName ← Grape.takeWhile (fun c => c ≠ 58 && c ≠ 13)
