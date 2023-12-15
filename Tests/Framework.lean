@@ -1,13 +1,13 @@
 def reset := "\u001B[0m"
-def red := "\u001B[31m"
+def red   := "\u001B[31m"
 def green := "\u001B[32m"
 
 def test (message : String) (result : Bool) : IO Bool := do
   if result then
-    IO.println (green ++ message ++ reset)
+    IO.println (green ++ "[OK]   " ++ message ++ reset)
     return true
   else
-    IO.println (red ++ message ++ reset)
+    IO.println (red   ++ "[FAIL] " ++ message ++ reset)
     return false
 
 def run (results : List (IO Bool)) := do
