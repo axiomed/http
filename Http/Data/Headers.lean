@@ -6,6 +6,7 @@ import Soda.Grape.Text
 
 open Lean
 
+
 -- | Headers are a map from header names to header values.
 structure Headers where
   headers : HashMap String String
@@ -20,12 +21,16 @@ instance : ToString Headers where
 
 def Headers.empty : Headers := { headers := HashMap.empty }
 
+instance : Inhabited Headers where
+  default := Headers.empty
+
 def Headers.add (headers : Headers) (name : String) (value : String) : Headers :=
   { headers with headers := headers.headers.insert name value }
 
 def Headers.with (name: String) (value: String) (headers: Headers) : Headers :=
   headers.add name value
 
+-- | Parse a single header key-value pair
 def parseHeader : Grape.Grape (String × String) := do
   let headerName ← Grape.takeWhile (fun c => c ≠ 58 && c ≠ 13)
   let _ ← Grape.string ": "
@@ -33,7 +38,7 @@ def parseHeader : Grape.Grape (String × String) := do
   let _ ← Grape.string "\r\n"
   Grape.pure (headerName.toASCIIString, headerValue.toASCIIString)
 
-def Headers.parse : Grape.Grape Headers := do
+def Headers.parser : Grape.Grape Headers := do
   let headerList ← Grape.list parseHeader
   let headers := HashMap.ofList headerList
   Grape.pure { headers }
