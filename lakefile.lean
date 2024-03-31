@@ -11,5 +11,5 @@ lean_exe «tests» where
   root := `Tests
   supportInterpreter := true
 
-require soda   from git "https://github.com/algebraic-sofia/soda.git"
-require Socket from git "https://github.com/KislyjKisel/Socket.lean.git"
+require soda   from git "https://github.com/algebraic-sofia/soda.git" @ "main"
+require Socket from git "https://github.com/KislyjKisel/Socket.lean.git" @ "main"
