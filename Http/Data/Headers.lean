@@ -1,11 +1,8 @@
 import Lean.Data.HashMap
 
-import Soda
-import Soda.Grape
-import Soda.Grape.Text
+namespace Http.Data
 
 open Lean
-
 
 -- | Headers are a map from header names to header values.
 structure Headers where
@@ -29,16 +26,3 @@ def Headers.add (headers : Headers) (name : String) (value : String) : Headers :
 
 def Headers.with (name: String) (value: String) (headers: Headers) : Headers :=
   headers.add name value
-
--- | Parse a single header key-value pair
-def parseHeader : Grape.Grape (String × String) := do
-  let headerName ← Grape.takeWhile (fun c => c ≠ 58 && c ≠ 13)
-  let _ ← Grape.string ": "
-  let headerValue ← Grape.takeWhile (fun c => c ≠ 13)
-  let _ ← Grape.string "\r\n"
-  Grape.pure (headerName.toASCIIString, headerValue.toASCIIString)
-
-def Headers.parser : Grape.Grape Headers := do
-  let headerList ← Grape.list parseHeader
-  let headers := HashMap.ofList headerList
-  Grape.pure { headers }

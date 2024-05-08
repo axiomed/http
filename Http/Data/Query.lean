@@ -1,4 +1,4 @@
-import Soda.Grape.Text
+namespace Http.Data
 
 structure Query where
   pairs : List (String × Option String)

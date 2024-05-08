@@ -3,6 +3,7 @@ import Http.Data.Version
 import Http.Data.Method
 import Http.Data.Uri
 
+namespace Http.Data
 
 -- | A request is a message from the client to the server.
 structure Request where
@@ -29,4 +30,3 @@ def Request.withBody (request : Request) (body : String) : Request :=
   match request.method with
   | Method.get => { request with method := Method.post, body }
   | _ => { request with body }
-

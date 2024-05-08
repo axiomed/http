@@ -1,3 +1,5 @@
+namespace Http.Data
+
 --| Types for HTTP status codes.
 inductive Status where
   | continued
@@ -196,4 +198,3 @@ def Status.fromCode : Nat → Option Status
   | 510 => Option.some notExtended
   | 511 => Option.some networkAuthenticationRequired
   | _   => Option.none
-
