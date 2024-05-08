@@ -12,6 +12,7 @@ structure Request where
   version : Version
   headers : Headers
   body    : String
+  deriving Repr
 
 instance : ToString Request where
   toString r :=

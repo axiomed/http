@@ -30,6 +30,7 @@ parser Parser where
   callback endProp
   callback endUrl
   callback endField
+  callback endRequestLine : method major minor
 
   node statusLine where
     peek 'H' (call (store type 0) httpVersionStart)
@@ -99,7 +100,7 @@ parser Parser where
       any reasonPhrase
 
     node lineAlmostDone where
-      is "\r\n" fieldLineStart
+      is "\r\n" (call endRequestLine fieldLineStart)
 
     node fieldLineStart where
       peek '\r' endMessage

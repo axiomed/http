@@ -73,19 +73,25 @@ def end_field (data: Accumulate) : IO (Accumulate × Int) := do
   pure ({ data with req := {data.req with headers := data.req.headers.add data.prop data.value }, prop := "", value := ""}, 0)
 
 def end_prop (data: Accumulate) : IO (Accumulate × Int) := do
-  pure (data, if data.prop.toLower == "content-length"  then 1 else 0)
+  pure (data, if data.prop.toLower == "content-length" then 1 else 0)
+
+def on_body (fn: Request → IO Unit) (body: String) (acc: Accumulate) : IO (Accumulate × Int) := do
+
+  fn {acc.req with body};
+  pure (acc, 0)
 
 def requestParser (fn: Request → IO Unit) : UV.IO (Parser.Data Accumulate) := do
   IO.toUVIO $
     Parser.create
       (on_reasonPhrase := noop)
       (on_url := toBS on_url)
-      (on_body := toStr (λbody acc => do fn {acc.req with body}; pure (acc, 0)))
+      (on_body := toStr (on_body fn))
       (on_prop := toStr (λval acc => pure ({acc with prop := acc.prop.append val}, 0)))
       (on_value := toStr (λval acc => pure ({acc with value := acc.value.append val}, 0)))
       (on_endProp := end_prop)
       (on_endUrl := end_url)
       (on_endField := end_field)
+      (on_endRequestLine := λacc method major minor => pure ({acc with req := {acc.req with version := Version.mk major minor, method := (Method.fromNumber method).get!}}, 0))
       (Accumulate.empty (← uriParser))
 
 def parse (data: Parser.Data Accumulate) (arr: ByteArray) : UV.IO (Parser.Data Accumulate) :=
@@ -100,8 +106,11 @@ def readSocket (socket: UV.TCP) (on_eof: UV.IO Unit) (fn: Request → UV.IO Resp
 
   let ref ← IO.toUVIO (IO.mkRef data)
   socket.read_start fun
-    | .error e => throw (.errorcode e)
-    | .eof => on_eof
+    | .error _ => do
+      socket.read_stop
+      socket.stop
+    | .eof => do
+      on_eof
     | .ok bytes => do
       let data ← ref.get
       let res ← parse data bytes
@@ -117,10 +126,8 @@ def server (host: String) (port: UInt16) (fn: Request → UV.IO Response) (timeo
       let client ← loop.mkTCP
       server.accept client
       let timer ← loop.mkTimer
-      let onEOF := do timer.stop; client.read_stop
+      let onEOF := do timer.stop
       timer.start timeout (timeout * 2) do onEOF
       readSocket client onEOF fn
-
     let _ ← loop.run
-
   UV.IO.run go

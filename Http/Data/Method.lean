@@ -11,6 +11,7 @@ inductive Method where
   | options
   | trace
   | patch
+  deriving Repr, Inhabited
 
 instance : ToString Method where
   toString
@@ -35,3 +36,15 @@ def Method.fromString : String → Option Method
     | "TRACE"   => some Method.trace
     | "PATCH"   => some Method.patch
     | _         => none
+
+def Method.fromNumber : Nat → Option Method
+    | 0 => some .head
+    | 1 => some .get
+    | 2 => some .post
+    | 3 => some .put
+    | 4 => some .delete
+    | 5 => some .options
+    | 6 => some .connect
+    | 7 => some .trace
+    | 8 => some .patch
+    | _ => none

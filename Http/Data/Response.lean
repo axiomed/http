@@ -9,11 +9,11 @@ namespace Http.Data
 structure Response where
   version      : Version
   status       : Status
-  reasonPhrase : Substring
+  reasonPhrase : String
   headers      : Headers
   body         : String
 
 instance : ToString Response where
   toString r :=
-    let headerString := toString r.status.toCode ++ " " ++ toString r.version ++ "\r\n" ++ toString r.headers
+    let headerString := toString r.version ++ " " ++ toString r.status.toCode ++ " " ++ r.reasonPhrase ++ "\r\n" ++ toString r.headers
     headerString ++ "\r\n\r\n" ++ r.body
