@@ -7,7 +7,6 @@ module_data alloy.c.o.export : BuildJob FilePath
 module_data alloy.c.o.noexport : BuildJob FilePath
 
 open Lean
-
 lean_lib Http where
   precompileModules := true
   nativeFacets := fun shouldExport =>
@@ -17,5 +16,5 @@ lean_lib Http where
       #[Module.oNoExportFacet, `alloy.c.o.noexport]
 
 require alloy from git "https://github.com/tydeu/lean4-alloy.git"
-require Parse from git "https://github.com/axiomed/Parse.lean.git"
-require LibUV from git "https://github.com/algebraic-sofia/lean-libuv.git"
+require Parse from "../lean-parse"
+require LibUV from git "https://github.com/algebraic-sofia/lean-libuv.git" @ "socket-fix"

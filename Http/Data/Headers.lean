@@ -26,3 +26,6 @@ def Headers.add (headers : Headers) (name : String) (value : String) : Headers :
 
 def Headers.with (name: String) (value: String) (headers: Headers) : Headers :=
   headers.add name value
+
+def Headers.contains (name: String) (headers: Headers) : Bool :=
+  headers.headers.contains name

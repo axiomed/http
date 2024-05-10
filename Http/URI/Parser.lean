@@ -9,7 +9,7 @@ namespace Http.URI
 
 open Parse.DSL
 
-parser Parser where
+parser Parser in C where
   def path : span
   def port : span
   def schema : span
@@ -58,7 +58,7 @@ parser Parser where
   node server where
     is "?" (end host queryStart)
     peek '/' (end host (start path path))
-    peek ':' (end host beforePort)
+    peek ':' beforePort
     is userinfo_chars server
     is ["[" "]"] server
     is "@" serverWithAt
@@ -68,7 +68,7 @@ parser Parser where
 
   node port where
     is digit port
-    otherwise (end port afterPort)
+    otherwise (end port (end host afterPort))
 
   node afterPort where
     is "?" queryStart
@@ -77,7 +77,7 @@ parser Parser where
   node serverWithAt where
     is "?" (end host queryStart)
     peek '/' (end host (start path path))
-    peek ':' (end host (start port port))
+    peek ':' (start port port)
     is userinfo_chars serverWithAt
     is ["[" "]"] serverWithAt
     is "@" (error 3)

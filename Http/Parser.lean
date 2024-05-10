@@ -6,10 +6,11 @@ namespace Http
 open Parse.DSL
 
 /-!
-  HTTP Parser based on https://httpwg.org/specs/rfc9112.html
+  HTTP Message Parser based on https://httpwg.org/specs/rfc9112.html.
+  - We do not replace CR with SP before processing
 -/
 
-parser Parser where
+parser Parser in C where
   def type : u8
   def method : u8
   def statusCode : u16
@@ -30,12 +31,15 @@ parser Parser where
   callback endProp
   callback endUrl
   callback endField
+  callback endHeaders
   callback endRequestLine : method major minor
 
+  -- Defines if its a `request-line` or `status-line`, this parser is used for both request and response.
   node statusLine where
     peek 'H' (call (store type 0) httpVersionStart)
     otherwise (call (store type 1) method)
 
+  -- The start of the `request-line` defined in https://httpwg.org/specs/rfc9112.html#request.line
   node method where
     switch (store method beforeUrl)
       | "HEAD" => 0
@@ -50,9 +54,9 @@ parser Parser where
     otherwise (error 2)
 
     node beforeUrl where
-      is " " beforeUrl
-      otherwise (start url url)
+      is " " (start url url)
 
+    -- The start of the `request-target` defined in https://httpwg.org/specs/rfc9112.html#request.target
     node url where
       peek ' ' (end url (call endUrl endUrl))
       any url
@@ -100,11 +104,21 @@ parser Parser where
       any reasonPhrase
 
     node lineAlmostDone where
-      is "\r\n" (call endRequestLine fieldLineStart)
+      is "\r\n" requestLine
+
+    node requestLine where
+      select endRequestLine
+        | 0 => fieldLineStart
+        default => error 1
 
     node fieldLineStart where
-      peek '\r' endMessage
+      peek '\r' endHeaders
       otherwise (start prop fieldLineProp)
+
+    node endHeaders where
+      select endHeaders
+        | 0 => endMessage
+        default => error 1
 
     node fieldLineProp where
       peek ':' (end prop (call (callStore endProp isCL) fieldLineColon))
@@ -124,12 +138,17 @@ parser Parser where
         default => error 0
 
     node contentLength where
-      peek '\r' (end value fieldLineEnd)
+      peek '\r' (end value selectLineEnd)
       is digit (call (mulAdd contentLength) contentLength)
 
     node fieldLineValue where
-      peek '\r' (end value (call endField fieldLineEnd))
+      peek '\r' (end value selectLineEnd)
       any fieldLineValue
+
+    node selectLineEnd where
+      select endField
+        | 0 => fieldLineEnd
+        default => error 1
 
     node fieldLineEnd where
       is "\r\n" fieldLineStart
