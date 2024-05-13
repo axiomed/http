@@ -9,7 +9,7 @@ namespace Http.URI
 
 open Parse.DSL
 
-parser Parser in C where
+parser Parser in Lean where
   def path : span
   def port : span
   def schema : span

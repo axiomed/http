@@ -54,12 +54,12 @@ def appendOr (data: Option String) (str: String) : Option String :=
 
 def uriParser : (URI.Parser.Data Http.Data.Uri) :=
   URI.Parser.create
-    (on_path := toStr (λval acc => pure ({acc with path := appendOr acc.path val }, 0)))
-    (on_port := toStr (λval acc => pure ({acc with port := appendOr acc.port val }, 0)))
-    (on_schema := toStr (λval acc => pure ({acc with scheme := appendOr acc.scheme val }, 0)))
-    (on_host := toStr (λval acc => pure ({acc with authority := appendOr acc.authority val }, 0)))
-    (on_query := toStr (λval acc => pure ({acc with query := appendOr acc.query val }, 0)))
-    (on_fragment := toStr (λval acc => pure ({acc with fragment := appendOr acc.fragment val }, 0)))
+    (onPath := toStr (λval acc => pure ({acc with path := appendOr acc.path val }, 0)))
+    (onPort := toStr (λval acc => pure ({acc with port := appendOr acc.port val }, 0)))
+    (onSchema := toStr (λval acc => pure ({acc with scheme := appendOr acc.scheme val }, 0)))
+    (onHost := toStr (λval acc => pure ({acc with authority := appendOr acc.authority val }, 0)))
+    (onQuery := toStr (λval acc => pure ({acc with query := appendOr acc.query val }, 0)))
+    (onFragment := toStr (λval acc => pure ({acc with fragment := appendOr acc.fragment val }, 0)))
     Inhabited.default
 
 def onUrl (str: ByteArray) (data: Accumulate) : IO (Accumulate × Nat) := do
@@ -101,16 +101,16 @@ def onRequestLine (method: Nat) (major: Nat) (minor: Nat) (acc: Accumulate) : IO
 
 def requestParser (fn: Request → IO Unit) : Parser.Data Accumulate :=
     Parser.create
-      (on_reasonPhrase := noop)
-      (on_url := toBS onUrl)
-      (on_body := toStr (onBody fn))
-      (on_prop := toStr (λval acc => pure ({acc with prop := acc.prop.append val}, 0)))
-      (on_value := toStr (λval acc => pure ({acc with value := acc.value.append val}, 0)))
-      (on_endProp := endProp)
-      (on_endUrl := endUrl)
-      (on_endField := endField)
-      (on_endRequestLine := onRequestLine)
-      (on_endHeaders := λacc => pure (acc, if acc.hasHost then 0 else 1))
+      (onReasonPhrase := noop)
+      (onUrl := toBS onUrl)
+      (onBody := toStr (onBody fn))
+      (onProp := toStr (λval acc => pure ({acc with prop := acc.prop.append val}, 0)))
+      (onValue := toStr (λval acc => pure ({acc with value := acc.value.append val}, 0)))
+      (onEndProp := endProp)
+      (onEndUrl := endUrl)
+      (onEndField := endField)
+      (onEndRequestLine := onRequestLine)
+      (onEndHeaders := λacc => pure (acc, if acc.hasHost then 0 else 1))
       (Accumulate.empty (uriParser))
 
 def parse (data: Parser.Data Accumulate) (arr: ByteArray) : UV.IO (Parser.Data Accumulate) :=

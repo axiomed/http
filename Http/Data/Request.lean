@@ -5,19 +5,19 @@ import Http.Data.Uri
 
 namespace Http.Data
 
--- | A request is a message from the client to the server.
-structure Request where
-  method  : Method
-  uri     : Uri
-  version : Version
-  headers : Headers
-  body    : String
-  deriving Repr
+set_option linter.all true
 
-instance : ToString Request where
-  toString r :=
-    let headerString := toString r.method ++ " " ++ toString r.uri ++ " " ++ toString r.version ++ "\r\n" ++ toString r.headers
-    headerString ++ "\r\n\r\n" ++ r.body
+/-- A request is a message from the client to the server. -/
+structure Request where
+  /-- Method specifies the HTTP Method -/
+  method  : Method
+  /-- Specifies the URI being requested -/
+  uri     : Uri
+  /-- The version of the protocol that is being used in this message -/
+  version : Version
+  /-- A map containing all the fields received -/
+  headers : Headers
+  deriving Repr
 
 def Request.empty : Request :=
   Request.mk Method.get Uri.empty Version.v10 Headers.empty ""

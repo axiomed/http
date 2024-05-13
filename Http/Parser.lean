@@ -10,7 +10,7 @@ open Parse.DSL
   - We do not replace CR with SP before processing
 -/
 
-parser Parser in C where
+parser Parser in Lean where
   def type : u8
   def method : u8
   def statusCode : u16
