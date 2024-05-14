@@ -1,11 +1,13 @@
 namespace Http.Data
 
+/-! List of query parameters in a URL -/
+
 structure Query where
-  pairs : List (String × Option String)
+  pairs : Array (String × Option String)
   deriving BEq, Repr
 
 def Query.empty : Query :=
-  Query.mk List.nil
+  Query.mk Array.empty
 
 def Query.isEmpty (query : Query) : Bool :=
   query == Query.empty
@@ -17,4 +19,4 @@ instance : ToString Query where
       | (k, none) => k
 
     let pairs := q.pairs.map flat
-    String.join (pairs.intersperse "&")
+    String.join (pairs.toList.intersperse "&")

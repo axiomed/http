@@ -5,7 +5,7 @@ open Lean
 structure Version where
   major : Nat
   minor : Nat
-  deriving Repr, BEq
+  deriving Repr, BEq, Inhabited
 
 def Version.v10 := Version.mk 1 0
 def Version.v11 := Version.mk 1 1

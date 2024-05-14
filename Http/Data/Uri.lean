@@ -5,7 +5,9 @@ namespace Http.Data
 
 open Lean
 
-structure Uri where
+/-! Definition of URIS using the HTTP/1.1 RFC. -/
+
+structure URI where
   scheme    : Option String
   authority : Option String
   port      : Option String
@@ -14,13 +16,13 @@ structure Uri where
   fragment  : Option String
   deriving Inhabited, Repr
 
-def Uri.empty : Uri := Uri.mk none none none none none none
+def URI.empty : URI := URI.mk none none none none none none
 
-def Uri.isEmpty (uri: Uri): Bool :=
+def URI.isEmpty (uri: URI): Bool :=
   let isEmptyQuery := Option.getD (uri.query.map (fun q => q.isEmpty)) true
   uri.scheme.isNone && uri.authority.isNone && uri.path.isNone && isEmptyQuery && uri.fragment.isNone
 
-instance : ToString Uri where
+instance : ToString URI where
   toString u :=
     let scheme := Option.getD (u.scheme.map (fun s => s ++ "://")) ""
     let authority := Option.getD u.authority ""

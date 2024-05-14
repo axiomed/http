@@ -3,42 +3,32 @@ import Lean.Data.HashMap
 namespace Http.Data
 open Lean
 
+/-! Definition of a set of HTTP Headers. It is a multi map of fields -/
+
+/-- Map of case insensitive fields to multiple values -/
 structure Headers where
-  /-- All the -/
-  headers : HashMap String String
-
-  /-- The length of the body that is being received, if it's none then its probably using
-      Transfer encoding instead
-  -/
-  contentLength : Option Nat
-  /-- The list of encodings that is going to be used to parse the body -/
-  transferEncoding : Array String
-  /-- If the connection should close after sending the response  -/
-  close : Bool
-
-instance : Repr Headers where
-  reprPrec h _ := repr h.headers.toList
+  headers : HashMap String (Array String)
+  deriving Inhabited
 
 instance : ToString Headers where
   toString h :=
-    let headerStrings := h.headers.toList.map (fun (k, v) => k ++ ": " ++ v)
+    let headerStrings := h.headers.toList.map (fun (k, v) => k ++ ": " ++ v.get! 0)
     String.intercalate "\r\n" headerStrings
 
+/-- Creates a new empty set of HTTP headers -/
 def Headers.empty : Headers :=
-  { headers := HashMap.empty
-  , contentLength := none
-  , transferEncoding := #[]
-  , close := false
-  }
+  { headers := Inhabited.default }
 
-instance : Inhabited Headers where
-  default := Headers.empty
+/-- Adds a new value to the header map -/
+def Headers.add (headers: Headers) (name: String) (value: String) : Headers :=
+  let arr := headers.headers.findD name.toLower #[]
+  let arr := arr.push value
+  { headers := headers.headers.insert name arr}
 
-def Headers.add (headers : Headers) (name : String) (value : String) : Headers :=
-  { headers with headers := headers.headers.insert name value }
+/-- Get the first value of a header s-/
+def Headers.find? (headers: Headers) (name: String) : Option String :=
+  (Array.get! · 0) <$> (headers.headers.find? name.toLower)
 
-def Headers.with (name: String) (value: String) (headers: Headers) : Headers :=
-  headers.add name value
-
-def Headers.contains (name: String) (headers: Headers) : Bool :=
-  headers.headers.contains name
+/-- Get all of the multiple values of a header -/
+def Headers.findAll? (headers: Headers) (name: String) : Option (Array String) :=
+  headers.headers.find? name.toLower

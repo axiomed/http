@@ -1,6 +1,8 @@
 namespace Http.Data
 
---| Types for HTTP status codes.
+/-! Definition of HTTP Status codes and translations. -/
+
+/-- HTTP Status codes. -/
 inductive Status where
   | continued
   | switchingProtocols

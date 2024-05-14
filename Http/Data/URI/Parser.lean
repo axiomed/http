@@ -5,7 +5,7 @@ import Parse.DSL
   Parser for URI
 -/
 
-namespace Http.URI
+namespace Http.Data.URI
 
 open Parse.DSL
 

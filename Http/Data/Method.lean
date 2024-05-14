@@ -1,6 +1,8 @@
 namespace Http.Data
 
--- | A method is a verb that describes the action to be performed.
+/-! Definition of the [Method] inductive type with all the HTTP Methods for requesting data. -/
+
+/-- A method is a verb that describes the action to be performed. -/
 inductive Method where
   | get
   | head

@@ -2,7 +2,7 @@
   Http Server configuration.
 -/
 
-namespace Http
+namespace Http.IO.Server
 
 /-- Structure to configure a HTTP web server -/
 structure Config where
