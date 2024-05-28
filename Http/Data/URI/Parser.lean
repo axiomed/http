@@ -2,10 +2,10 @@ import Parse
 import Parse.DSL
 
 /-!
-  Parser for URI
+  Parser for Uri
 -/
 
-namespace Http.Data.URI
+namespace Http.Data.Uri
 
 open Parse.DSL
 

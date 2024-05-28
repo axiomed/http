@@ -10,10 +10,12 @@ namespace Http.Data
 -/
 
 /-- A request is a message from the client to the server. -/
-structure Request (Incoming: Type) where
+structure Request where
   method : Method
   uri : Uri
   version : Version
   headers : Headers
-  body: Incoming
-  deriving Inhabited
+  body : String
+
+def Request.empty :=
+  Request.mk Method.get Uri.empty Version.v10 Inhabited.default ""

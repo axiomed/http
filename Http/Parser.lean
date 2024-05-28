@@ -19,22 +19,35 @@ parser Parser in Lean where
   def reasonPhrase : span
   def url : span
   def body : span
+  def chunkData : span
   def prop : span
   def value : span
 
+  def chunkExtensionName : span
+  def chunkExtensionVal : span
+
   def isCL : u8
   def contentLength : u64
+  def chunkLength : u64
 
   set digit := ["0" "1" "2" "3" "4" "5" "6" "7" "8" "9"]
   set ws := [" " "\x09"]
 
+  set token := [
+    " " "!" "\"" "#" "$" "%" "&" "'" "(" ")" "*" "+" "," "-" "." "/" "0" "1" "2" "3" "4"
+    "5" "6" "7" "8" "9" ":" ";" "<" "=" ">" "?" "@" "A" "B" "C" "D" "E" "F" "G" "H" "I"
+    "J" "K" "L" "M" "N" "O" "P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z" "[" "\\" "]" "^"
+    "_" "`" "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" "r" "s" "t"
+    "u" "v" "w" "x" "y" "z" "{" "|" "}" "~"
+  ]
+
   callback endProp
   callback endUrl
   callback endField
-  callback endHeaders
-  callback endRequestLine : method major minor
+  callback endHeaders [ contentLength ]
+  callback endRequestLine [ method major minor ]
 
-  -- Defines if its a `request-line` or `status-line`, this parser is used for both request and response.
+  -- Defines if its a `request-line` or `status-line` this parser is used for both request and response.
   node statusLine where
     peek 'H' (call (store type 0) httpVersionStart)
     otherwise (call (store type 1) method)
@@ -87,13 +100,13 @@ parser Parser in Lean where
       is " " statusCode1
 
     node statusCode1 where
-      is digit (call (mulAdd statusCode) statusCode2)
+      is digit (call (mulAdd decimal statusCode) statusCode2)
 
     node statusCode2 where
-      is digit (call (mulAdd statusCode) statusCode3)
+      is digit (call (mulAdd decimal statusCode) statusCode3)
 
     node statusCode3 where
-      is digit (call (mulAdd statusCode) resStatusCode)
+      is digit (call (mulAdd decimal statusCode) resStatusCode)
 
     node resStatusCode where
       is " " (start reasonPhrase reasonPhrase)
@@ -115,11 +128,6 @@ parser Parser in Lean where
       peek '\r' endHeaders
       otherwise (start prop fieldLineProp)
 
-    node endHeaders where
-      select endHeaders
-        | 0 => endMessage
-        default => error 1
-
     node fieldLineProp where
       peek ':' (end prop (call (callStore endProp isCL) fieldLineColon))
       any fieldLineProp
@@ -139,11 +147,17 @@ parser Parser in Lean where
 
     node contentLength where
       peek '\r' (end value selectLineEnd)
-      is digit (call (mulAdd contentLength) contentLength)
+      is digit (call (mulAdd decimal contentLength) contentLength)
 
     node fieldLineValue where
       peek '\r' (end value selectLineEnd)
       any fieldLineValue
+
+    node endHeaders where
+      select endHeaders
+        | 0 => endMessage
+        | 1 => startChunker
+        default => error 1
 
     node selectLineEnd where
       select endField
@@ -154,10 +168,74 @@ parser Parser in Lean where
       is "\r\n" fieldLineStart
 
     node endMessage where
-      is "\r\n" (start body body)
+      is "\r\n" (start body (consume contentLength (end body theEnd)))
 
-    node body where
-      otherwise (consume contentLength (end body theEnd))
+    node startChunker where
+      is "\r\n" (call (store chunkLength 0) chunkSize)
+
+    node chunk where
+      otherwise (call (store chunkLength 0) chunkSize)
+
+    node chunkSize where
+      is digit (call (mulAdd hex chunkLength) chunkParseLength)
+
+    node chunkParseLength where
+      is digit (call (mulAdd hex chunkLength) chunkParseLength)
+      otherwise chunkExtension
+
+    node chunkExtension where
+      is ";" (start chunkExtensionName chunkExtensionName)
+      otherwise chunkData
+
+    node chunkExtensionName where
+      is token chunkExtensionName
+      otherwise (end chunkExtensionName chunkExtensionColon)
+
+    node chunkExtensionColon where
+      is "=" chunkExtensionValStart
+      otherwise chunkExtension
+
+    node chunkExtensionValStart where
+      is token (start chunkExtensionVal chunkExtensionVal)
+
+    node chunkExtensionVal where
+      is token chunkExtensionVal
+      is "\"" chunkExtensionValStr
+      otherwise (end chunkExtensionVal chunkExtension)
+
+    node chunkExtensionValStr where
+      is "\"" (end chunkExtensionVal chunkExtension)
+      any chunkExtensionValStr
+
+    node chunkData where
+      is "\r\n" (start chunkData (consume chunkLength (end chunkData chunkDataEnd)))
+
+    node chunkDataEnd where
+      is "\r\n" chunkDataSelect
+
+    node chunkDataSelect where
+      select (read chunkLength)
+        | 0 => trailer
+        default => chunk
+
+    node trailer where
+      is "\r\n" theEnd
+      otherwise (start prop trailerProp)
+
+    node trailerProp where
+      peek ':' (end prop (call (callStore endProp isCL) trailerColon))
+      any trailerProp
+
+    node trailerColon where
+      is ":" trailerColon
+
+    node trailerOWS where
+      is " " trailerOWS
+      otherwise (start value trailerValue)
+
+    node trailerValue where
+      peek '\r' (end value selectLineEnd)
+      any trailerValue
 
     node theEnd where
       otherwise (call (store contentLength 0) statusLine)

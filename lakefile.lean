@@ -16,5 +16,5 @@ lean_lib Http where
       #[Module.oNoExportFacet, `alloy.c.o.noexport]
 
 require alloy from git "https://github.com/tydeu/lean4-alloy.git"
-require Parse from "../lean-parse"
 require LibUV from git "https://github.com/algebraic-sofia/lean-libuv.git" @ "socket-fix"
+require Parse from "../lean-parse"

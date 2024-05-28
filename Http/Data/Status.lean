@@ -239,7 +239,7 @@ def Status.text : Status → String
   | .lengthRequired => "Length Required"
   | .preconditionFailed => "Precondition Failed"
   | .payloadTooLarge => "Request Entity Too Large"
-  | .uriTooLong => "Request URI Too Long"
+  | .uriTooLong => "Request Uri Too Long"
   | .unsupportedMediaType => "Unsupported Media Type"
   | .rangeNotSatisfiable => "Requested Range Not Satisfiable"
   | .expectationFailed => "Expectation Failed"

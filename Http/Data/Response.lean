@@ -10,9 +10,14 @@ namespace Http.Data
 -/
 
 /-- A request is a message from the client to the server. -/
-structure Response (Outcome: Type) where
+structure Response where
   version : Version
   status : Status
   reasonPhrase : String
   headers : Headers
-  body : Outcome
+  body : String
+
+instance : ToString Response where
+  toString r :=
+    let headerString := toString r.version ++ " " ++ toString r.status.toCode ++ " " ++ r.reasonPhrase ++ "\r\n" ++ toString r.headers
+    headerString ++ "\r\n\r\n" ++ r.body
