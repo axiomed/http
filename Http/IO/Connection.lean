@@ -29,7 +29,7 @@ def Connection.close (connection: Connection) : IO Unit := connection.guard do
   UV.IO.run connection.socket.stop
   connection.isClosing.set true
 
-def Connection.write [Serialize α] (connection: Connection) (data: ByteArray) : IO Unit := connection.guard do
+def Connection.write [Serialize α] (connection: Connection) (data: α) : IO Unit := connection.guard do
   connection.buffer.modify (ToBuffer.toBuffer · data)
 
 def Connection.rawWrite (connection: Connection) (buffer: Buffer) : IO Unit := do

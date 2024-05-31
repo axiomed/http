@@ -1,4 +1,9 @@
 import Http.Data
 import Http.IO.Connection
+import Http.IO.Server
 
-export Http.IO.Connection (server)
+namespace Http
+
+export Http.IO (Connection)
+export Http.IO.Server (server)
+export Http.Protocols.Http1.Data (Chunk Trailers)
