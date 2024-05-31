@@ -130,7 +130,7 @@ private def onChunk (fn: Chunk → IO Unit) (body: ByteArray) (acc: State) : IO 
 /-- Handles the end of the request usually with a function that receives the trailer -/
 private def onEndRequest (fn: Trailers → IO Unit) (acc: State) : IO (State × Nat) := do
   fn acc.trailer
-  pure (acc, 0)
+  pure (State.empty, 0)
 
 /-- Creates the HTTP request parser with the provided body callback -/
 def Parser.create
