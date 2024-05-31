@@ -2,6 +2,11 @@ namespace Http.Data
 
 open Lean
 
+/-! This namespace defines structures and instances related to HTTP versions. It includes the
+    definition of HTTP version numbers and conversion utilities.
+-/
+
+/-- The 'Version' structure represents an HTTP version with a major and minor number. -/
 structure Version where
   major : Nat
   minor : Nat

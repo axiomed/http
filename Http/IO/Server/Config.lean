@@ -21,6 +21,9 @@ structure Config where
   /-- Time in seconds to close the connection after some request is sent -/
   idleTimeout : Nat
 
+  /-- Number of headers that a request or response can have -/
+  maxHeaders : Nat
+
 instance : Inhabited Config where
   default :=
     { name := some "http.lean"
@@ -28,4 +31,5 @@ instance : Inhabited Config where
     , tcpKeepAlive := true
     , maxRequestBody := 30000000
     , idleTimeout := 1
+    , maxHeaders := 20
     }

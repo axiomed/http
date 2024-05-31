@@ -1,109 +1,42 @@
-import Parse
-import Parse.DSL
-
-/-!
-  Parser for Uri
--/
+import Http.Data.Uri.Grammar
+import Http.Data.Uri
 
 namespace Http.Data.Uri
 
-open Parse.DSL
+/-! Defines an incremental parser handler using the `Grammar` module. This parser is designed to handle
+    URI components incrementally.
+-/
 
-parser Parser in Lean where
-  def path : span
-  def port : span
-  def schema : span
-  def host : span
-  def query : span
-  def fragment : span
+abbrev Parser := Grammar.Data Http.Data.Uri
 
-  set digit := ["0" "1" "2" "3" "4" "5" "6" "7" "8" "9"]
+private def setField (func: String → Uri → Uri) : Nat → Nat → ByteArray → Uri → IO (Uri × Nat) :=
+  fun st en bs acc => pure (func (String.fromUTF8! $ bs.extract st en) acc, 0)
 
-  set alpha :=
-    ["A" "B" "C" "D" "E" "F" "G" "H" "I" "J" "K" "L" "M"
-     "N" "O" "P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z"
-     "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m"
-     "n" "o" "p" "q" "r" "s" "t" "u" "v" "w" "x" "y" "z" ]
+/-- Creates a new parser structure. This parser uses various field-setting functions to update the
+URI components. -/
+def Parser.create : Parser :=
+    Grammar.create
+      (onPath := setField (λval acc => {acc with path := appendOr acc.path val }))
+      (onPort := setField (λval acc => {acc with port := appendOr acc.port val }))
+      (onSchema := setField (λval acc => {acc with scheme := appendOr acc.scheme val }))
+      (onHost := setField (λval acc => {acc with authority := appendOr acc.authority val }))
+      (onQuery := setField (λval acc => {acc with query := appendOr acc.query val }))
+      (onFragment := setField (λval acc => {acc with fragment := appendOr acc.fragment val }))
+      Inhabited.default
+  where
+    appendOr (data: Option String) (str: String) : Option String :=
+      match data with
+      | some res => some $ res.append str
+      | none => some str
 
-  set userinfo_chars :=
-    ["A" "B" "C" "D" "E" "F" "G" "H" "I" "J" "K" "L" "M"
-     "N" "O" "P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z"
-     "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m"
-     "n" "o" "p" "q" "r" "s" "t" "u" "v" "w" "x" "y" "z"
-     "0" "1" "2" "3" "4" "5" "6" "7" "8" "9" "-" "_" "."
-     "!" "~" "*" "\"" "(" ")" "%" ";" "&" "=" "+" "$"
-     "," ]
+/-- Feeds data into the parser. This function takes a parser and a ByteArray, and processes the
+data to update the parser state incrementally. -/
+def Parser.feed (parser: Parser) (data: ByteArray) : IO Parser :=
+  Grammar.parse parser data
 
-  set url_char :=
-    ["!" "\"" "$" "%" "&" "\'" "(" ")" "*" "+" "," "-" "."
-     "/" ":" ";" "<" "=" ">" "@" "[" "\\" "]" "^" "_" "`"
-     "{" "|" "}" "~" "A" "B" "C" "D" "E" "F" "G" "H" "I"
-     "J" "K" "L" "M" "N" "O" "P" "Q" "R" "S" "T" "U" "V"
-     "W" "X" "Y" "Z" "a" "b" "c" "d" "e" "f" "g" "h" "i"
-     "j" "k" "l" "m" "n" "o" "p" "q" "r" "s" "t" "u" "v"
-     "w" "x" "y" "z" "0" "1" "2" "3" "4" "5" "6" "7" "8" "9"]
-
-  node beginning where
-    peek ['/' '*'] (start path path)
-    peek alpha (start schema schema)
-
-  node schema where
-    is alpha schema
-    peek ':' (end schema schemaDelim)
-    otherwise (error 20000)
-
-  node schemaDelim where
-    is "://" (start host server)
-
-  node server where
-    is "?" (end host queryStart)
-    peek '/' (end host (start path path))
-    peek ':' beforePort
-    is userinfo_chars server
-    is ["[" "]"] server
-    is "@" serverWithAt
-
-  node beforePort where
-    is ":" (start port port)
-
-  node port where
-    is digit port
-    otherwise (end port (end host afterPort))
-
-  node afterPort where
-    is "?" queryStart
-    is "/" (start path path)
-
-  node serverWithAt where
-    is "?" (end host queryStart)
-    peek '/' (end host (start path path))
-    peek ':' (start port port)
-    is userinfo_chars serverWithAt
-    is ["[" "]"] serverWithAt
-    is "@" (error 3)
-
-  node queryStart where
-    otherwise (start query query)
-
-  node path where
-    is url_char path
-    otherwise (end path queryOrFragment)
-
-  node queryOrFragment where
-    is "?" (start query query)
-    is "#" (start fragment startFragment)
-
-  node query where
-    is url_char query
-    is "?" query
-    peek '#' (end query eatFragStart)
-
-  node eatFragStart where
-    is "#" (start fragment fragment)
-
-  node fragment where
-    is url_char fragment
-    is ["?" "#"] fragment
-
-  node startFragment where
-    otherwise (start fragment fragment)
+/-- Retrieves the parsed URI data from the parser. This function extracts the accumulated URI
+information from the parser. -/
+def Parser.data (parser: Parser) : Except Nat Uri :=
+  if parser.error ≠ 0
+    then .error parser.error
+    else .ok (Grammar.Data.info parser)

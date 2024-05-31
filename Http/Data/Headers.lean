@@ -10,6 +10,11 @@ structure Headers where
   headers : HashMap String (Array String)
   deriving Inhabited
 
+instance : Repr Headers where
+  reprPrec r _ :=
+    let headerStrings := r.headers.toList.map (fun (k, v) => reprStr k ++ ": " ++ reprStr (v.get! 0))
+    "{" ++  String.intercalate "," headerStrings ++ "}"
+
 instance : ToString Headers where
   toString h :=
     let headerStrings := h.headers.toList.map (fun (k, v) => k ++ ": " ++ v.get! 0)
@@ -23,7 +28,7 @@ def Headers.empty : Headers :=
 def Headers.add (headers: Headers) (name: String) (value: String) : Headers :=
   let arr := headers.headers.findD name.toLower #[]
   let arr := arr.push value
-  { headers := headers.headers.insert name arr}
+  { headers := headers.headers.insert name.toLower arr}
 
 /-- Get the first value of a header s-/
 def Headers.find? (headers: Headers) (name: String) : Option String :=

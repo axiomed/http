@@ -67,7 +67,7 @@ inductive Status where
   | loopDetected
   | notExtended
   | networkAuthenticationRequired
-  deriving Repr
+  deriving Repr, Inhabited
 
 -- | Convert a Status to a numeric code. This is useful for sending the status code in a response.
 def Status.toCode : Status -> Nat

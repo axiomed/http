@@ -1,16 +1,14 @@
 import Parse
 import Parse.DSL
 
-namespace Http
+namespace Http.Protocols.Http1
 
 open Parse.DSL
 
-/-!
-  HTTP Message Parser based on https://httpwg.org/specs/rfc9112.html.
-  - We do not replace CR with SP before processing
--/
 
-parser Parser in Lean where
+/-! HTTP Message Parser based on https://httpwg.org/specs/rfc9112.html. -/
+
+parser Grammar in Lean where
   def type : u8
   def method : u8
   def statusCode : u16
@@ -23,9 +21,6 @@ parser Parser in Lean where
   def prop : span
   def value : span
 
-  def chunkExtensionName : span
-  def chunkExtensionVal : span
-
   def isCL : u8
   def contentLength : u64
   def chunkLength : u64
@@ -35,7 +30,7 @@ parser Parser in Lean where
 
   set token := [
     " " "!" "\"" "#" "$" "%" "&" "'" "(" ")" "*" "+" "," "-" "." "/" "0" "1" "2" "3" "4"
-    "5" "6" "7" "8" "9" ":" ";" "<" "=" ">" "?" "@" "A" "B" "C" "D" "E" "F" "G" "H" "I"
+    "5" "6" "7" "8" "9" ":" "<" ">" "?" "@" "A" "B" "C" "D" "E" "F" "G" "H" "I"
     "J" "K" "L" "M" "N" "O" "P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z" "[" "\\" "]" "^"
     "_" "`" "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" "r" "s" "t"
     "u" "v" "w" "x" "y" "z" "{" "|" "}" "~"
@@ -44,13 +39,18 @@ parser Parser in Lean where
   callback endProp
   callback endUrl
   callback endField
+  callback endFieldExt
+  callback endFieldTrailer
+  callback endRequest
   callback endHeaders [ contentLength ]
   callback endRequestLine [ method major minor ]
+  callback endResponseLine [ statusCode major minor ]
 
   -- Defines if its a `request-line` or `status-line` this parser is used for both request and response.
   node statusLine where
-    peek 'H' (call (store type 0) httpVersionStart)
-    otherwise (call (store type 1) method)
+    select (read type)
+      | 0 => httpVersionStart
+      default => method
 
   -- The start of the `request-line` defined in https://httpwg.org/specs/rfc9112.html#request.line
   node method where
@@ -64,7 +64,7 @@ parser Parser in Lean where
       | "CONNECT" => 6
       | "TRACE" => 7
       | "PATCH" => 8
-    otherwise (error 2)
+    otherwise (error 23)
 
     node beforeUrl where
       is " " (start url url)
@@ -168,7 +168,10 @@ parser Parser in Lean where
       is "\r\n" fieldLineStart
 
     node endMessage where
-      is "\r\n" (start body (consume contentLength (end body theEnd)))
+      is "\r\n" (start body bodyInfo)
+
+    node bodyInfo where
+      consume contentLength (end body theEnd)
 
     node startChunker where
       is "\r\n" (call (store chunkLength 0) chunkSize)
@@ -184,39 +187,39 @@ parser Parser in Lean where
       otherwise chunkExtension
 
     node chunkExtension where
-      is ";" (start chunkExtensionName chunkExtensionName)
+      is ";" (start prop chunkExtensionName)
       otherwise chunkData
 
     node chunkExtensionName where
       is token chunkExtensionName
-      otherwise (end chunkExtensionName chunkExtensionColon)
+      otherwise (end prop chunkExtensionColon)
 
     node chunkExtensionColon where
-      is "=" chunkExtensionValStart
-      otherwise chunkExtension
-
-    node chunkExtensionValStart where
-      is token (start chunkExtensionVal chunkExtensionVal)
+      is "=" (start value chunkExtensionVal)
+      otherwise (call endFieldExt chunkExtension)
 
     node chunkExtensionVal where
       is token chunkExtensionVal
       is "\"" chunkExtensionValStr
-      otherwise (end chunkExtensionVal chunkExtension)
+      otherwise (end value (call endFieldExt chunkExtension))
 
     node chunkExtensionValStr where
-      is "\"" (end chunkExtensionVal chunkExtension)
+      is "\"" (end value chunkExtension)
       any chunkExtensionValStr
 
     node chunkData where
-      is "\r\n" (start chunkData (consume chunkLength (end chunkData chunkDataEnd)))
+      is "\r\n" (start chunkData chunkDataInfo)
+
+    node chunkDataInfo where
+      consume chunkLength (end chunkData chunkDataEnd)
 
     node chunkDataEnd where
-      is "\r\n" chunkDataSelect
-
-    node chunkDataSelect where
       select (read chunkLength)
         | 0 => trailer
-        default => chunk
+        default => chunkDataSelect
+
+    node chunkDataSelect where
+      is "\r\n" chunk
 
     node trailer where
       is "\r\n" theEnd
@@ -227,15 +230,18 @@ parser Parser in Lean where
       any trailerProp
 
     node trailerColon where
-      is ":" trailerColon
+      is ":" trailerOWS
 
     node trailerOWS where
       is " " trailerOWS
       otherwise (start value trailerValue)
 
     node trailerValue where
-      peek '\r' (end value selectLineEnd)
+      peek '\r' (end value trailerFieldEnd)
       any trailerValue
 
+    node trailerFieldEnd where
+      is "\r\n" (call endFieldTrailer trailer)
+
     node theEnd where
-      otherwise (call (store contentLength 0) statusLine)
+      otherwise (call endRequest (call (store contentLength 0) statusLine))
