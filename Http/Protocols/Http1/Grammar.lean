@@ -5,8 +5,9 @@ namespace Http.Protocols.Http1
 
 open Parse.DSL
 
-
 /-! HTTP Message Parser based on https://httpwg.org/specs/rfc9112.html. -/
+
+-- an HTTP/1.1 client MUST NOT preface or follow a request with an extra CRLF.
 
 parser Grammar in Lean where
   def type : u8
@@ -147,7 +148,7 @@ parser Grammar in Lean where
 
     node contentLength where
       peek '\r' (end value selectLineEnd)
-      is digit (call (mulAdd decimal contentLength) contentLength)
+      is digit (call (mulAdd octal contentLength) contentLength)
 
     node fieldLineValue where
       peek '\r' (end value selectLineEnd)
