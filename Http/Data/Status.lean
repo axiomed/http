@@ -135,6 +135,21 @@ def Status.toCode : Status -> Nat
   | notExtended                   => 510
   | networkAuthenticationRequired => 511
 
+def isInformational (c : Status) :=
+  c.toCode < 200
+
+def isSuccess (c : Status) :=
+  200 ≤ c.toCode ∧ c.toCode < 300
+
+def isRedirection (c : Status) :=
+  300 ≤ c.toCode ∧ c.toCode < 400
+
+def isClientError (c : Status) :=
+  400 ≤ c.toCode ∧ c.toCode < 500
+
+def isServerError (c : Status) :=
+  500 ≤ c.toCode ∧ c.toCode < 600
+
 def Status.fromCode : Nat → Option Status
   | 100 => Option.some continued
   | 101 => Option.some switchingProtocols

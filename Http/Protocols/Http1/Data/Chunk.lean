@@ -17,6 +17,9 @@ structure Chunk where
 def Chunk.fromString (x: String) : Chunk :=
   Chunk.mk Data.Headers.empty (String.toUTF8 x)
 
+def Chunk.zeroed : Chunk :=
+  Chunk.mk Inhabited.default ByteArray.empty
+
 /-- 'Trailer' is defined as a type alias for Headers, which represents the trailing headers that may
 be sent after the last chunk in an HTTP/1.1 response. -/
 abbrev Trailers := Http.Data.Headers
@@ -31,3 +34,15 @@ instance : Serialize Chunk where
     BufferBuilder.write "\r\n"
     BufferBuilder.write chunk.data
     BufferBuilder.write "\r\n"
+
+instance : Coe String Chunk where
+  coe := Chunk.fromString
+
+instance : Coe ByteArray Chunk where
+  coe := Chunk.mk Inhabited.default
+
+instance : Coe Chunk Chunk where
+  coe := id
+
+instance : Coe (Array ByteArray) Chunk where
+  coe := Chunk.mk Inhabited.default ∘ Array.foldl ByteArray.append ByteArray.empty

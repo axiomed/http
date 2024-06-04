@@ -148,7 +148,7 @@ parser Grammar in Lean where
 
     node contentLength where
       peek '\r' (end value selectLineEnd)
-      is digit (call (mulAdd octal contentLength) contentLength)
+      is digit (call (mulAdd decimal contentLength) contentLength)
 
     node fieldLineValue where
       peek '\r' (end value selectLineEnd)

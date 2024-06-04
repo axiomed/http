@@ -9,6 +9,7 @@ open Lean
 inductive TransferEncoding where
   | chunked
   | custom (value: String)
+  deriving BEq
 
 inductive HeaderName.Standard where
   | date

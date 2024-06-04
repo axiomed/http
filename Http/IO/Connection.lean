@@ -7,6 +7,10 @@ import LibUV
 
 namespace Http.IO
 
+open Http.Protocols.Http1.Data
+open Http.Data.HeaderName
+open Http.Data
+
 structure Connection where
   isClosing: IO.Ref Bool
   isChunked: Bool
@@ -29,8 +33,8 @@ def Connection.close (connection: Connection) : IO Unit := connection.guard do
   UV.IO.run connection.socket.stop
   connection.isClosing.set true
 
-def Connection.write [Serialize α] (connection: Connection) (data: α) : IO Unit := connection.guard do
-  connection.buffer.modify (ToBuffer.toBuffer · data)
+def Connection.write [Coe α Chunk] (connection: Connection) (data: α) : IO Unit := connection.guard do
+  connection.buffer.modify (ToBuffer.toBuffer · (Coe.coe data : Chunk))
 
 def Connection.rawWrite (connection: Connection) (buffer: Buffer) : IO Unit := do
   UV.IO.run do let _ ← connection.socket.write buffer (λ_ => pure ())
@@ -41,7 +45,13 @@ def Connection.flushBody (connection: Connection) : IO Unit := connection.guard 
 
 def Connection.end (connection: Connection) (alive: Bool) : IO Unit := connection.guard do
   let response ← connection.response.get
+
   connection.rawWrite (ToBuffer.toBuffer #[] response)
   connection.flushBody
+
+  if let some (res : Array TransferEncoding) := response.headers.findAll? Standard.transferEncoding then
+    if res.contains TransferEncoding.chunked then
+      connection.rawWrite (ToBuffer.toBuffer #[] Chunk.zeroed)
+
   if !alive then
     connection.close
