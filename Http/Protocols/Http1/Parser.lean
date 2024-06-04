@@ -72,18 +72,25 @@ private def endField (data: State) : IO (State × Nat) := do
           else (data, true)
     | _ => (data, true)
 
-  let req :=  {data.req with headers := data.req.headers.add prop value}
-  pure ({ data with req, prop := "", value := ""}, if code then 0 else 1)
+  match data.req.headers.add? prop value with
+  | .some headers => pure ({ data with req := { data.req with headers }, prop := "", value := ""}, if code then 0 else 1)
+  | .none => pure (data, 1)
 
 private def onEndFieldExt (data: State) : IO (State × Nat) := do
   let prop := data.prop.toLower
   let value := data.value
-  pure ({ data with chunkHeaders := data.chunkHeaders.add prop value, prop := "", value := ""}, 0)
+
+  match data.chunkHeaders.add? prop value with
+  | .some chunkHeaders => pure ({ data with chunkHeaders, prop := "", value := ""}, 0)
+  | .none => pure (data, 1)
 
 private def onEndFieldTrailer (data: State) : IO (State × Nat) := do
   let prop := data.prop.toLower
   let value := data.value
-  pure ({ data with trailer := data.trailer.add prop value, prop := "", value := ""}, 0)
+
+  match data.trailer.add? prop value with
+  | .some trailer => pure ({ data with trailer, prop := "", value := ""}, 0)
+  | .none => pure (data, 1)
 
 /-- Checks if the property being processed is "content-length" -/
 private def endProp (data: State) : IO (State × Nat) := do

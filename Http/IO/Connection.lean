@@ -39,8 +39,9 @@ def Connection.flushBody (connection: Connection) : IO Unit := connection.guard 
   let buffer ← connection.buffer.swap #[]
   connection.rawWrite buffer
 
-def Connection.end (connection: Connection) : IO Unit := connection.guard do
+def Connection.end (connection: Connection) (alive: Bool) : IO Unit := connection.guard do
   let response ← connection.response.get
   connection.rawWrite (ToBuffer.toBuffer #[] response)
   connection.flushBody
-  connection.close
+  if !alive then
+    connection.close

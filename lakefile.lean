@@ -15,6 +15,9 @@ lean_lib Http where
     else
       #[Module.oNoExportFacet, `alloy.c.o.noexport]
 
+require CaseInsensitive from git "https://github.com/axiomed/CaseInsensitive.lean.git"
+require DHashMap from git "https://github.com/axiomed/DHashMap.lean.git"
 require alloy from git "https://github.com/tydeu/lean4-alloy.git"
 require LibUV from git "https://github.com/algebraic-sofia/lean-libuv.git" @ "socket-fix"
 require Parse from git "https://github.com/axiomed/Parse.lean.git"
+require Time from git "https://github.com/axiomed/Time.lean.git"

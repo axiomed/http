@@ -26,9 +26,8 @@ instance : ToString Chunk where
 
 instance : Serialize Chunk where
   serialize chunk := do
-    let extensions := chunk.extensions.headers.toList.map $ λ(k, v) => ";" ++ k ++ ": " ++ String.quote (String.intercalate ", " v.toList)
     BufferBuilder.write (toHex chunk.data.size)
-    BufferBuilder.write (String.join extensions)
+    BufferBuilder.write (toString chunk.extensions)
     BufferBuilder.write "\r\n"
     BufferBuilder.write chunk.data
     BufferBuilder.write "\r\n"

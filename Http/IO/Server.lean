@@ -22,15 +22,17 @@ def onConnection (conn: IO.Ref Connection) (onConn: Connection → IO Unit) (req
   let conn ← conn.get
   onConn conn
 
-def badRequest (socket: UV.TCP) (on_error: UV.IO Unit) := do
+def badRequest (conn: Connection) := do
   let headers := Headers.empty
-              |>.add "Connection" "close"
+              |>.add! "Connection" "close"
+
   let response := Response.mk (Version.v11) (Status.badRequest) "Bad Request" headers
-  let _ ← socket.write #[(ToString.toString response).toUTF8] (λ_ => pure ())
-  on_error
+  let _ ← conn.write (ToString.toString response).toUTF8
+  conn.flushBody
+  conn.close
 
 def readSocket
-  (socket: UV.TCP) (on_error: UV.IO Unit)
+  (socket: UV.TCP)
   (onConn: Connection → IO Unit)
   (onData: Connection → Chunk → IO Unit)
   (onTrailer: Connection → Trailers → IO Unit)
@@ -61,7 +63,8 @@ def readSocket
         ref.set res
         IO.toUVIO $ IO.println s!"--- {res.error} {repr res.state}"
         if res.error ≠ 0 then
-          badRequest socket on_error
+          let conn ← connRef.get
+          IO.toUVIO $ badRequest conn
 
 def server (host: String) (port: UInt16)
   (onConn: Connection → IO Unit)
@@ -76,9 +79,6 @@ def server (host: String) (port: UInt16)
     server.listen 128 do
       let client ← loop.mkTCP
       server.accept client
-      let onEOF := do
-        client.read_stop
-        client.stop
-      readSocket client onEOF onConn onData onTrailer
+      readSocket client onConn onData onTrailer
     let _ ← loop.run
   UV.IO.run go

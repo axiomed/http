@@ -5,6 +5,10 @@ namespace Http.Data
 
 open Lean
 
+-- TODO: Comparisons of host names MUST be case-insensitive;
+-- TODO: Comparisons of scheme names MUST be case-insensitive;
+-- TODO: An empty abs_path is equivalent to an abs_path of "/".
+
 /-! Definition of URIS using the HTTP/1.1 RFC. -/
 
 structure Uri where
