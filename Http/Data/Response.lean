@@ -10,7 +10,7 @@ namespace Http.Data
 open Http.IO
 
 /-! HTTP [Response] with a bunch of parts like version and status and a body with the [Outcome] type
-    that can be anything that can be transformed into a String
+that can be anything that can be transformed into a String
 -/
 
 /-- A request is a message from the client to the server. -/
@@ -21,7 +21,10 @@ structure Response where
   headers : Headers
 
 def Response.empty :=
-  Response.mk Version.v10 Status.ok "" Inhabited.default
+  Response.mk Version.v11 Status.ok Status.ok.text Inhabited.default
+
+def Response.setStatus (res: Response) (status: Status) : Response :=
+  { res with status, reasonPhrase := status.text }
 
 instance : ToString Response where
   toString r :=

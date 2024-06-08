@@ -15,6 +15,7 @@ inductive HeaderName.Standard where
   | date
   | transferEncoding
   | contentType
+  | connection
   deriving BEq, Hashable, DecidableEq
 
 instance : ToString HeaderName.Standard where
@@ -22,6 +23,7 @@ instance : ToString HeaderName.Standard where
     | .date => "date"
     | .transferEncoding => "transfer-encoding"
     | .contentType => "content-type"
+    | .connection => "connection"
 
 /-- Class definition for Header, which includes methods to parse and stringify values of type `α` -/
 class Header (α: Type 0) where
@@ -29,12 +31,12 @@ class Header (α: Type 0) where
   stringify: α → String
 
 /-- Instance for custom Headers mainly -/
-instance Header.String.instance : Header String where
+instance : Header String where
   parse := some
   stringify := id
 
 /-- Instance based on https://datatracker.ietf.org/doc/html/rfc2616#section-3.3.1 -/
-instance Header.DateTime.instance : Header (Time.DateTime .GMT) where
+instance : Header (Time.DateTime .GMT) where
   /- though they MUST only generate the RFC 1123 format for representing HTTP-date values in header fields. -/
   stringify := RFC822.format
 
@@ -49,7 +51,7 @@ instance Header.DateTime.instance : Header (Time.DateTime .GMT) where
     RFC850 := Time.Format.spec! "EEEE, DD-MMM-YY hh:mm:ss 'GMT'"
 
 /-- Instance for the Transfer Encoding Header -/
-instance Header.TransferEncoding.instance : Header TransferEncoding where
+instance : Header TransferEncoding where
   parse
     | "chunked" => TransferEncoding.chunked
     | other => TransferEncoding.custom other
@@ -58,16 +60,23 @@ instance Header.TransferEncoding.instance : Header TransferEncoding where
     | .custom s => s
 
 def HeaderName.Standard.getType : HeaderName.Standard → Sigma Header
-  | .date => ⟨Time.DateTime .GMT, Header.DateTime.instance⟩
+  | .date => ⟨Time.DateTime .GMT, inferInstance⟩
   -- Defined in [https://datatracker.ietf.org/doc/html/rfc2616#section-3.6]
-  | .transferEncoding => ⟨TransferEncoding, Header.TransferEncoding.instance⟩
+  | .transferEncoding => ⟨TransferEncoding, inferInstance⟩
   -- We should add [https://datatracker.ietf.org/doc/html/rfc2616#section-3.7]?
-  | .contentType => ⟨String, Header.String.instance⟩
+  | .contentType => ⟨String, inferInstance⟩
+  -- Connection parameter
+  | .connection => ⟨String, inferInstance⟩
 
 inductive HeaderName
   | standard (standard: HeaderName.Standard)
   | custom (name: String.CI)
   deriving BEq, Hashable, DecidableEq
+
+instance : ToString HeaderName where
+  toString
+    | .standard std => toString std
+    | .custom ci => ci.value
 
 def headerNameTrie : Lean.Data.Trie HeaderName.Standard :=
   Lean.Data.Trie.empty
@@ -79,18 +88,27 @@ def HeaderName.parse (x: String.CI) : HeaderName :=
   | .some x => .standard x
   | .none => .custom x
 
+def HeaderName.getType : HeaderName → Sigma Header
+  | .standard std => std.getType
+  | .custom _ => ⟨String, Header.String.instance⟩
+
+def HeaderName.canonicalName (name: HeaderName): String :=
+  let lower := toString name
+  let parts := lower.split (· == '-')
+  let parts := parts.map String.capitalize
+  String.intercalate "-" parts
+
 instance : Coe String String.CI where
   coe := String.CI.new
 
 instance : Coe String HeaderName where
   coe := HeaderName.parse ∘ String.CI.new
 
+instance : Coe String.CI HeaderName where
+  coe := HeaderName.parse
+
 instance : Coe HeaderName.Standard HeaderName where
   coe := .standard
-
-def HeaderName.getType : HeaderName → Sigma Header
-  | .standard std => std.getType
-  | .custom _ => ⟨String, Header.String.instance⟩
 
 instance : ToString HeaderName where
   toString

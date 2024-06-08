@@ -1,8 +1,9 @@
-/-!
-  Http Server configuration.
--/
+import Http.Data.Uri
 
 namespace Http.IO.Server
+open Http.Data
+
+/-! Http Server configuration. -/
 
 /-- Structure to configure a HTTP web server -/
 structure Config where
@@ -26,7 +27,7 @@ structure Config where
 
 instance : Inhabited Config where
   default :=
-    { name := some "http.lean"
+    { name := some "Http.lean"
     , closeOnShutdown := true
     , tcpKeepAlive := true
     , maxRequestBody := 30000000

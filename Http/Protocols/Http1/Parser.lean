@@ -12,18 +12,21 @@ handling URL, fields, and headers of an HTTP request.
 open Http.Protocols.Http1.Data
 open Http.Data
 
-/-- State structure to keep track of the parsing status of an HTTP request -/
+/-- State structure to keep track of the request or repsonse that we are parsing right now -/
 structure State where
-  hasHost : Bool
-  isChunked : Bool
   req: Request
   res: Response
+
   prop : String
   value : String
+
+  contentLength : Option Nat
+  hasHost : Bool
+  isChunked : Bool
   uri: Uri.Parser
+
   chunkHeaders : Headers
   trailer : Trailers
-  contentLength : Option Nat
 
 abbrev Parser := Grammar.Data State
 
@@ -72,25 +75,22 @@ private def endField (data: State) : IO (State × Nat) := do
           else (data, true)
     | _ => (data, true)
 
-  match data.req.headers.add? prop value with
-  | .some headers => pure ({ data with req := { data.req with headers }, prop := "", value := ""}, if code then 0 else 1)
-  | .none => pure (data, 1)
+  let headers := data.req.headers.add? prop value
+  pure ({ data with req := { data.req with headers }, prop := "", value := ""}, if code then 0 else 1)
 
 private def onEndFieldExt (data: State) : IO (State × Nat) := do
   let prop := data.prop.toLower
   let value := data.value
 
-  match data.chunkHeaders.add? prop value with
-  | .some chunkHeaders => pure ({ data with chunkHeaders, prop := "", value := ""}, 0)
-  | .none => pure (data, 1)
+  let chunkHeaders := data.chunkHeaders.add? prop value
+  pure ({ data with chunkHeaders, prop := "", value := ""}, 0)
 
 private def onEndFieldTrailer (data: State) : IO (State × Nat) := do
   let prop := data.prop.toLower
   let value := data.value
 
-  match data.trailer.add? prop value with
-  | .some trailer => pure ({ data with trailer, prop := "", value := ""}, 0)
-  | .none => pure (data, 1)
+  let trailer := data.trailer.add prop value
+  pure ({ data with trailer, prop := "", value := ""}, 0)
 
 /-- Checks if the property being processed is "content-length" -/
 private def endProp (data: State) : IO (State × Nat) := do

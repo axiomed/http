@@ -11,10 +11,13 @@ open Lean
 
 /-! Definition of URIS using the HTTP/1.1 RFC. -/
 
+/-- TCP number port -/
+abbrev Port := UInt16
+
 structure Uri where
   scheme    : Option String
   authority : Option String
-  port      : Option String
+  port      : Option Port
   path      : Option String
   query     : Option String
   fragment  : Option String

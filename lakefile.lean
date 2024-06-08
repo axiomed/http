@@ -21,3 +21,6 @@ require alloy from git "https://github.com/tydeu/lean4-alloy.git"
 require LibUV from git "https://github.com/algebraic-sofia/lean-libuv.git" @ "socket-fix"
 require Parse from git "https://github.com/axiomed/Parse.lean.git"
 require Time from git "https://github.com/axiomed/Time.lean.git"
+
+meta if get_config? env = some "dev" then
+  require «doc-gen4» from git "https://github.com/leanprover/doc-gen4" @ "main"
