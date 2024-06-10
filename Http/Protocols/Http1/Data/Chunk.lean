@@ -1,11 +1,12 @@
+import Http.Classes.Standard
 import Lean.Data.Trie
 import Http.Data.Headers
 import Http.IO.Buffer
-import Http.Util
+import Http.Util.Format
 
 namespace Http.Protocols.Http1.Data
-
-open Http.Util
+open Http.Util.Format
+open Http.Classes
 open Http.Data
 open Http.IO
 
@@ -70,7 +71,7 @@ def TrailersImp.valid (name: String.CI) : Bool :=
 def TrailersImp.add (trailers: TrailersImp) (name: String) (value: String) : TrailersImp :=
   let ci := String.CI.new name
   if TrailersImp.valid ci
-    then Headers.add? trailers ci value
+    then Headers.add trailers (Standard.parse name) value
     else trailers
 
 inductive TrailersImp.WellFormed : TrailersImp → Prop where

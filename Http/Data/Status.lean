@@ -1,8 +1,10 @@
 namespace Http.Data
 
-/-! Definition of HTTP Status codes and translations. -/
+/-- HTTP Status codes. Status codes are three-digit integer codes that describes the result of a
+HTTP request. In this implementation we do not treat status code as extensible.
 
-/-- HTTP Status codes. -/
+* Reference: https://httpwg.org/specs/rfc9110.html#status.codes
+ -/
 inductive Status where
   | continued
   | switchingProtocols
@@ -69,8 +71,10 @@ inductive Status where
   | networkAuthenticationRequired
   deriving Repr, Inhabited
 
+namespace Status
+
 -- | Convert a Status to a numeric code. This is useful for sending the status code in a response.
-def Status.toCode : Status -> Nat
+def toCode : Status -> UInt16
   | continued                     => 100
   | switchingProtocols            => 101
   | processing                    => 102
@@ -135,88 +139,74 @@ def Status.toCode : Status -> Nat
   | notExtended                   => 510
   | networkAuthenticationRequired => 511
 
-def isInformational (c : Status) :=
-  c.toCode < 200
+def fromCode : UInt16 → Option Status
+  | 100 => some continued
+  | 101 => some switchingProtocols
+  | 102 => some processing
+  | 103 => some earlyHints
+  | 200 => some ok
+  | 201 => some created
+  | 202 => some accepted
+  | 203 => some nonAuthoritativeInformation
+  | 204 => some noContent
+  | 205 => some resetContent
+  | 206 => some partialContent
+  | 207 => some multiStatus
+  | 208 => some alreadyReported
+  | 226 => some imUsed
+  | 300 => some multipleChoices
+  | 301 => some movedPermanently
+  | 302 => some found
+  | 303 => some seeOther
+  | 304 => some notModified
+  | 305 => some useProxy
+  | 306 => some unused
+  | 307 => some temporaryRedirect
+  | 308 => some permanentRedirect
+  | 400 => some badRequest
+  | 401 => some unauthorized
+  | 402 => some paymentRequired
+  | 403 => some forbidden
+  | 404 => some notFound
+  | 405 => some methodNotAllowed
+  | 406 => some notAcceptable
+  | 407 => some proxyAuthenticationRequired
+  | 408 => some requestTimeout
+  | 409 => some conflict
+  | 410 => some gone
+  | 411 => some lengthRequired
+  | 412 => some preconditionFailed
+  | 413 => some payloadTooLarge
+  | 414 => some uriTooLong
+  | 415 => some unsupportedMediaType
+  | 416 => some rangeNotSatisfiable
+  | 417 => some expectationFailed
+  | 418 => some imATeapot
+  | 421 => some misdirectedRequest
+  | 422 => some unprocessableEntity
+  | 423 => some locked
+  | 424 => some failedDependency
+  | 425 => some tooEarly
+  | 426 => some upgradeRequired
+  | 428 => some preconditionRequired
+  | 429 => some tooManyRequests
+  | 431 => some requestHeaderFieldsTooLarge
+  | 451 => some unavailableForLegalReasons
+  | 500 => some internalServerError
+  | 501 => some notImplemented
+  | 502 => some badGateway
+  | 503 => some serviceUnavailable
+  | 504 => some gatewayTimeout
+  | 505 => some httpVersionNotSupported
+  | 506 => some variantAlsoNegotiates
+  | 507 => some insufficientStorage
+  | 508 => some loopDetected
+  | 510 => some notExtended
+  | 511 => some networkAuthenticationRequired
+  | _   => none
 
-def isSuccess (c : Status) :=
-  200 ≤ c.toCode ∧ c.toCode < 300
-
-def isRedirection (c : Status) :=
-  300 ≤ c.toCode ∧ c.toCode < 400
-
-def isClientError (c : Status) :=
-  400 ≤ c.toCode ∧ c.toCode < 500
-
-def isServerError (c : Status) :=
-  500 ≤ c.toCode ∧ c.toCode < 600
-
-def Status.fromCode : Nat → Option Status
-  | 100 => Option.some continued
-  | 101 => Option.some switchingProtocols
-  | 102 => Option.some processing
-  | 103 => Option.some earlyHints
-  | 200 => Option.some ok
-  | 201 => Option.some created
-  | 202 => Option.some accepted
-  | 203 => Option.some nonAuthoritativeInformation
-  | 204 => Option.some noContent
-  | 205 => Option.some resetContent
-  | 206 => Option.some partialContent
-  | 207 => Option.some multiStatus
-  | 208 => Option.some alreadyReported
-  | 226 => Option.some imUsed
-  | 300 => Option.some multipleChoices
-  | 301 => Option.some movedPermanently
-  | 302 => Option.some found
-  | 303 => Option.some seeOther
-  | 304 => Option.some notModified
-  | 305 => Option.some useProxy
-  | 306 => Option.some unused
-  | 307 => Option.some temporaryRedirect
-  | 308 => Option.some permanentRedirect
-  | 400 => Option.some badRequest
-  | 401 => Option.some unauthorized
-  | 402 => Option.some paymentRequired
-  | 403 => Option.some forbidden
-  | 404 => Option.some notFound
-  | 405 => Option.some methodNotAllowed
-  | 406 => Option.some notAcceptable
-  | 407 => Option.some proxyAuthenticationRequired
-  | 408 => Option.some requestTimeout
-  | 409 => Option.some conflict
-  | 410 => Option.some gone
-  | 411 => Option.some lengthRequired
-  | 412 => Option.some preconditionFailed
-  | 413 => Option.some payloadTooLarge
-  | 414 => Option.some uriTooLong
-  | 415 => Option.some unsupportedMediaType
-  | 416 => Option.some rangeNotSatisfiable
-  | 417 => Option.some expectationFailed
-  | 418 => Option.some imATeapot
-  | 421 => Option.some misdirectedRequest
-  | 422 => Option.some unprocessableEntity
-  | 423 => Option.some locked
-  | 424 => Option.some failedDependency
-  | 425 => Option.some tooEarly
-  | 426 => Option.some upgradeRequired
-  | 428 => Option.some preconditionRequired
-  | 429 => Option.some tooManyRequests
-  | 431 => Option.some requestHeaderFieldsTooLarge
-  | 451 => Option.some unavailableForLegalReasons
-  | 500 => Option.some internalServerError
-  | 501 => Option.some notImplemented
-  | 502 => Option.some badGateway
-  | 503 => Option.some serviceUnavailable
-  | 504 => Option.some gatewayTimeout
-  | 505 => Option.some httpVersionNotSupported
-  | 506 => Option.some variantAlsoNegotiates
-  | 507 => Option.some insufficientStorage
-  | 508 => Option.some loopDetected
-  | 510 => Option.some notExtended
-  | 511 => Option.some networkAuthenticationRequired
-  | _   => Option.none
-
-def Status.text : Status → String
+/-- The canonical reason phrase for a status code. -/
+def canonicalReason : Status → String
   | .continued => "Continue"
   | .switchingProtocols => "Switching Protocols"
   | .processing => "Processing"
@@ -280,3 +270,41 @@ def Status.text : Status → String
   | .loopDetected => "Loop Detected"
   | .notExtended => "Not Extended"
   | .networkAuthenticationRequired => "Network Authentication Required"
+
+/-- Checks if the type of the status code is informational, meaning that the request was received
+and the process is continuing. -/
+@[inline]
+def isInformational (c : Status) : Prop :=
+  c.toCode < 200
+
+/-- Checks if the type of the status code is success, meaning that the request was successfully received,
+understood, and accepted.
+* Reference: https://httpwg.org/specs/rfc9110.html#status.codes
+-/
+@[inline]
+def isSuccess (c : Status) : Prop :=
+  200 ≤ c.toCode ∧ c.toCode < 300
+
+/-- Checks if the type of the status code is redirection, meaning that further action needs to be taken
+to complete the request.
+* Reference: https://httpwg.org/specs/rfc9110.html#status.codes
+-/
+@[inline]
+def isRedirection (c : Status) : Prop :=
+  300 ≤ c.toCode ∧ c.toCode < 400
+
+/-- Checks if the type of the status code is a client error, meaning that the request contains bad syntax
+or cannot be fulfilled.
+* Reference: https://httpwg.org/specs/rfc9110.html#status.codes
+-/
+@[inline]
+def isClientError (c : Status) : Prop :=
+  400 ≤ c.toCode ∧ c.toCode < 500
+
+/-- Checks if the type of the status code is a server error, meaning that the server failed to fulfill
+an apparently valid request.
+* Reference: https://httpwg.org/specs/rfc9110.html#status.codes
+-/
+@[inline]
+def isServerError (c : Status) : Prop :=
+  500 ≤ c.toCode ∧ c.toCode < 600

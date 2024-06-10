@@ -1,1 +1,0 @@
-namespace Http.IO.Transport

@@ -1,6 +1,6 @@
+import Http.Data.Body
 import Http.Data.Headers
 import Http.Data.Method
-import Http.Data.Query
 import Http.Data.Request
 import Http.Data.Status
 import Http.Data.Response

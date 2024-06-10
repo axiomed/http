@@ -24,9 +24,9 @@ def onConnection (conn: IO.Ref Connection) (onConn: Connection → IO Unit) (req
 
 def badRequest (conn: Connection) := do
   let headers := Headers.empty
-              |>.add! "Connection" "close"
+              |>.add "Connection" "close"
 
-  let response := Response.mk (Version.v11) (Status.badRequest) "Bad Request" headers
+  let response := Response.mk (Status.badRequest) (Version.v11) headers
   let _ ← conn.write (Chunk.mk Headers.empty (ToString.toString response).toUTF8)
   conn.flushBody
   conn.close

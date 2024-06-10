@@ -1,116 +1,136 @@
+import Http.Classes.Standard
+import Http.Classes.Canonical
+import Http.Classes.FromString
 import CaseInsensitive
-import DHashMap
-import Time
-import Lean
 
-namespace Http.Data
-open Lean
-
-inductive TransferEncoding where
-  | chunked
-  | custom (value: String)
-  deriving BEq
+namespace Http.Data.Headers
+open Http.Classes
 
 inductive HeaderName.Standard where
-  | date
-  | transferEncoding
-  | contentType
+  | accept
+  | acceptCharset
+  | acceptEncoding
+  | acceptLanguage
+  | age
+  | allow
+  | authorization
+  | cacheControl
   | connection
-  deriving BEq, Hashable, DecidableEq
+  | contentEncoding
+  | contentLength
+  | contentLocation
+  | contentType
+  | date
+  | expires
+  | host
+  | ifMatch
+  | ifModifiedSince
+  | ifNoneMatch
+  | ifRange
+  | ifUnmodifiedSince
+  | proxyAuthenticate
+  | proxyAuthorization
+  | setCookie
+  | transferEncoding
+  | wwwAuthenticate
+  deriving Inhabited, BEq, Repr, Hashable
+
+instance : FromString HeaderName.Standard where
+  trie := Lean.Data.Trie.empty
+    |>.insert "accept" .accept
+    |>.insert "accept-charset" .acceptCharset
+    |>.insert "accept-encoding" .acceptEncoding
+    |>.insert "accept-language" .acceptLanguage
+    |>.insert "age" .age
+    |>.insert "allow" .allow
+    |>.insert "authorization" .authorization
+    |>.insert "cache-control" .cacheControl
+    |>.insert "connection" .connection
+    |>.insert "content-encoding" .contentEncoding
+    |>.insert "content-length" .contentLength
+    |>.insert "content-location" .contentLocation
+    |>.insert "content-type" .contentType
+    |>.insert "date" .date
+    |>.insert "expires" .expires
+    |>.insert "host" .host
+    |>.insert "if-match" .ifMatch
+    |>.insert "if-modified-since" .ifModifiedSince
+    |>.insert "if-none-match" .ifNoneMatch
+    |>.insert "if-range" .ifRange
+    |>.insert "if-unmodified-since" .ifUnmodifiedSince
+    |>.insert "proxy-authenticate" .proxyAuthenticate
+    |>.insert "proxy-authorization" .proxyAuthorization
+    |>.insert "set-cookie" .setCookie
+    |>.insert "transfer-encoding" .transferEncoding
+    |>.insert "www-authenticate" .wwwAuthenticate
 
 instance : ToString HeaderName.Standard where
   toString
-    | .date => "date"
-    | .transferEncoding => "transfer-encoding"
-    | .contentType => "content-type"
-    | .connection => "connection"
+    | .accept                  => "accept"
+    | .acceptCharset           => "accept-charset"
+    | .acceptEncoding          => "accept-encoding"
+    | .acceptLanguage          => "accept-language"
+    | .age                     => "age"
+    | .allow                   => "allow"
+    | .authorization           => "authorization"
+    | .cacheControl            => "cache-control"
+    | .connection              => "connection"
+    | .contentEncoding         => "content-encoding"
+    | .contentLength           => "content-length"
+    | .contentLocation         => "content-location"
+    | .contentType             => "content-type"
+    | .date                    => "date"
+    | .expires                 => "expires"
+    | .host                    => "host"
+    | .ifMatch                 => "if-match"
+    | .ifModifiedSince         => "if-modified-since"
+    | .ifNoneMatch             => "if-none-match"
+    | .ifRange                 => "if-range"
+    | .ifUnmodifiedSince       => "if-unmodified-since"
+    | .proxyAuthenticate       => "proxy-authenticate"
+    | .proxyAuthorization      => "proxy-authorization"
+    | .setCookie               => "set-cookie"
+    | .transferEncoding        => "transfer-encoding"
+    | .wwwAuthenticate         => "www-authenticate"
 
-/-- Class definition for Header, which includes methods to parse and stringify values of type `α` -/
-class Header (α: Type 0) where
-  parse : String → Option α
-  stringify: α → String
+inductive HeaderName where
+  | standard (val: HeaderName.Standard)
+  | custom (value: String.CI)
+  deriving Inhabited, BEq, Repr, Hashable
 
-/-- Instance for custom Headers mainly -/
-instance : Header String where
-  parse := some
-  stringify := id
-
-/-- Instance based on https://datatracker.ietf.org/doc/html/rfc2616#section-3.3.1 -/
-instance : Header (Time.DateTime .GMT) where
-  /- though they MUST only generate the RFC 1123 format for representing HTTP-date values in header fields. -/
-  stringify := RFC822.format
-
-  /- HTTP/1.1 clients and servers that parse the date value MUST accept all three formats
-    All HTTP date/time stamps MUST be represented in Greenwich Mean Time (GMT),
-  -/
-  parse :=
-    Except.toOption ∘ Time.Format.choiceParse #[RFC822, RFC850, AscTime]
-  where
-    AscTime := Time.Format.spec! "EEE MMM d hh:mm:ss YYYY"
-    RFC822 := Time.Format.spec! "EEE, DD MMM YYYY hh:mm:ss 'GMT'"
-    RFC850 := Time.Format.spec! "EEEE, DD-MMM-YY hh:mm:ss 'GMT'"
-
-/-- Instance for the Transfer Encoding Header -/
-instance : Header TransferEncoding where
-  parse
-    | "chunked" => TransferEncoding.chunked
-    | other => TransferEncoding.custom other
-  stringify
-    | .chunked => "chunked"
-    | .custom s => s
-
-def HeaderName.Standard.getType : HeaderName.Standard → Sigma Header
-  | .date => ⟨Time.DateTime .GMT, inferInstance⟩
-  -- Defined in [https://datatracker.ietf.org/doc/html/rfc2616#section-3.6]
-  | .transferEncoding => ⟨TransferEncoding, inferInstance⟩
-  -- We should add [https://datatracker.ietf.org/doc/html/rfc2616#section-3.7]?
-  | .contentType => ⟨String, inferInstance⟩
-  -- Connection parameter
-  | .connection => ⟨String, inferInstance⟩
-
-inductive HeaderName
-  | standard (standard: HeaderName.Standard)
-  | custom (name: String.CI)
-  deriving BEq, Hashable, DecidableEq
+instance : Standard HeaderName HeaderName.Standard where
+  custom := HeaderName.custom ∘ String.CI.new
+  standard := HeaderName.standard
 
 instance : ToString HeaderName where
   toString
     | .standard std => toString std
-    | .custom ci => ci.value
+    | .custom str => toString str
 
-def headerNameTrie : Lean.Data.Trie HeaderName.Standard :=
-  Lean.Data.Trie.empty
-  |>.insert "date" .date
-  |>.insert "transfer-encoding" .transferEncoding
+instance : Canonical HeaderName where
+  repr name :=
+    let lower := toString name
+    let parts := lower.split (· == '-')
+    let parts := parts.map String.capitalize
+    String.intercalate "-" parts
 
-def HeaderName.parse (x: String.CI) : HeaderName :=
-  match headerNameTrie.find? x.value with
-  | .some x => .standard x
-  | .none => .custom x
+class Header (name: HeaderName.Standard) (α: outParam Type) where
+  parse : String → Option α
 
-def HeaderName.getType : HeaderName → Sigma Header
-  | .standard std => std.getType
-  | .custom _ => ⟨String, Header.String.instance⟩
+class HeaderVal (name: HeaderName) (α: outParam Type) where
+  parse : String → Option α
 
-def HeaderName.canonicalName (name: HeaderName): String :=
-  let lower := toString name
-  let parts := lower.split (· == '-')
-  let parts := parts.map String.capitalize
-  String.intercalate "-" parts
+instance : HeaderVal (.custom v) String where
+  parse x := some x
 
-instance : Coe String String.CI where
-  coe := String.CI.new
+instance [i : Header r α] : HeaderVal (.standard r) α where
+  parse := i.parse
 
 instance : Coe String HeaderName where
-  coe := HeaderName.parse ∘ String.CI.new
-
-instance : Coe String.CI HeaderName where
-  coe := HeaderName.parse
+  coe str :=
+    match FromString.fromString str.toLower with
+    | some res => .standard res
+    | none => .custom (String.CI.new str)
 
 instance : Coe HeaderName.Standard HeaderName where
   coe := .standard
-
-instance : ToString HeaderName where
-  toString
-    | .standard std => toString std
-    | .custom x => x.value

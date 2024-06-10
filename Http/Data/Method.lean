@@ -1,8 +1,9 @@
 namespace Http.Data
 
-/-! Definition of the [Method] inductive type with all the HTTP Methods for requesting data. -/
+/-- A method is a verb that describes the action to be performed.
 
-/-- A method is a verb that describes the action to be performed. -/
+* Reference: https://httpwg.org/specs/rfc9110.html#methods
+-/
 inductive Method where
   | get
   | head
@@ -15,31 +16,51 @@ inductive Method where
   | patch
   deriving Repr, Inhabited
 
+namespace Method
+
+/-- Request methods are considered safe if their defined semantics are essentially read-only
+
+* Reference: https://httpwg.org/specs/rfc9110.html#metho  d.properties
+-/
+def isSafe : Method → Prop
+  | .get | .head | .options | .trace => True
+  | _ => False
+
+/-- A request method is considered idempotent if the intended effect on the server of multiple
+identical requests with that method is the same as the effect for a single such request.
+
+* Reference: https://httpwg.org/specs/rfc9110.html#idempotent.methods
+-/
+def isIdempotent : Method → Prop
+  | .get | .head | .options | .trace => True
+  | .put | .delete => True
+  | _ => False
+
 instance : ToString Method where
   toString
-    | Method.get     => "GET"
-    | Method.head    => "HEAD"
-    | Method.post    => "POST"
-    | Method.put     => "PUT"
-    | Method.delete  => "DELETE"
-    | Method.connect => "CONNECT"
-    | Method.options => "OPTIONS"
-    | Method.trace   => "TRACE"
-    | Method.patch   => "PATCH"
+    | .get     => "GET"
+    | .head    => "HEAD"
+    | .post    => "POST"
+    | .put     => "PUT"
+    | .delete  => "DELETE"
+    | .connect => "CONNECT"
+    | .options => "OPTIONS"
+    | .trace   => "TRACE"
+    | .patch   => "PATCH"
 
-def Method.fromString : String → Option Method
-    | "GET"     => some Method.get
-    | "HEAD"    => some Method.head
-    | "POST"    => some Method.post
-    | "PUT"     => some Method.put
-    | "DELETE"  => some Method.delete
-    | "CONNECT" => some Method.connect
-    | "OPTIONS" => some Method.options
-    | "TRACE"   => some Method.trace
-    | "PATCH"   => some Method.patch
+def fromString : String → Option Method
+    | "GET"     => some .get
+    | "HEAD"    => some .head
+    | "POST"    => some .post
+    | "PUT"     => some .put
+    | "DELETE"  => some .delete
+    | "CONNECT" => some .connect
+    | "OPTIONS" => some .options
+    | "TRACE"   => some .trace
+    | "PATCH"   => some .patch
     | _         => none
 
-def Method.fromNumber : Nat → Option Method
+def fromNumber : Nat → Option Method
     | 0 => some .head
     | 1 => some .get
     | 2 => some .post

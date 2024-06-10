@@ -8,7 +8,7 @@ import LibUV
 namespace Http.IO
 
 open Http.Protocols.Http1.Data
-open Http.Data.HeaderName
+open Http.Data.Headers
 open Http.Data
 
 structure Connection where
@@ -51,8 +51,9 @@ def Connection.end (connection: Connection) (alive: Bool) : IO Unit := connectio
   connection.rawWrite (ToBuffer.toBuffer #[] response)
   connection.flushBody
 
-  if let some (res : Array TransferEncoding) := response.headers.findAll? Standard.transferEncoding then
-    if res.contains TransferEncoding.chunked then
+  if let some res := response.headers.find? HeaderName.Standard.transferEncoding then
+    let res := res.find? Headers.TransferEncoding.isChunked
+    if res.isSome then
       connection.rawWrite (ToBuffer.toBuffer #[] Chunk.zeroed)
 
   if !alive then

@@ -1,16 +1,46 @@
+import Http.Data.Headers.Transfer.Encoding
+
+import Http.Data.Headers.Content.Accept
+import Http.Data.Headers.Content.AcceptCharset
+import Http.Data.Headers.Content.AcceptEncoding
+import Http.Data.Headers.Content.AcceptLanguage
+import Http.Data.Headers.Content.ContentEncoding
+import Http.Data.Headers.Content.ContentLength
+import Http.Data.Headers.Content.ContentType
+import Http.Data.Headers.Content.ContentLocation
+
+import Http.Data.Headers.Cache.Age
+import Http.Data.Headers.Cache.CacheControl
+import Http.Data.Headers.Cache.Expires
+
+import Http.Data.Headers.Auth.Authorization
+import Http.Data.Headers.Auth.WWWAuthenticate
+import Http.Data.Headers.Auth.ProxyAuthorization
+import Http.Data.Headers.Auth.ProxyAuthenticate
+
+import Http.Data.Headers.Conditional.IfMatch
+-- import Http.Data.Headers.Conditional.ifModifiedSince
+-- import Http.Data.Headers.Conditional.ifNoneMatch
+-- import Http.Data.Headers.Conditional.ifRange
+-- import Http.Data.Headers.Conditional.ifUnmodifiedSince
+
+import Http.Data.Headers.Other.Allow
+import Http.Data.Headers.Other.Date
+import Http.Data.Headers.Other.Host
+import Http.Data.Headers.Other.SetCookie
+import Http.Data.Headers.Other.Connection
+
 import Http.Data.Headers.Name
 import CaseInsensitive
 import DHashMap
 import Lean
 
 namespace Http.Data
-open HeaderName
+open Http.Data.Headers
 open Lean
 
-/-! Definition of a set of HTTP Headers. It is a multi map of fields -/
 
-/-- A header value is the first value of the getType of a header name -/
-abbrev HeaderValue := Sigma.fst ∘ HeaderName.getType
+/-! Definition of a set of HTTP Headers. It is a multi map of fields -/
 
 /-- Header values are a bunch of values that can be equal
 
@@ -26,62 +56,37 @@ abbrev HeaderValue := Sigma.fst ∘ HeaderName.getType
   this library its a ordered array in an unordered map so it will result
   in the same thing.
 -/
-abbrev HeaderValues := Array ∘ HeaderValue
+abbrev Headers.HeaderValues := Array String
 
 /-- Map of case insensitive fields to multiple values -/
-def Headers := Lean.DHashMap HeaderName HeaderValues
+def Headers := Lean.HashMap Headers.HeaderName String
   deriving Inhabited
 
 instance : Repr Headers where
   reprPrec h _ :=
-    let headerStrings := h.toList.map fun sigma =>
-      let res := sigma.snd
-      let value :=
-        String.intercalate ","
-        $ Array.toList
-        $ Array.map (λk => String.quote (sigma.fst.getType.snd.stringify k)) (by simp at res; exact res)
-      s!"{String.quote (toString sigma.fst)}: {value}"
+    let headerStrings := h.toList.map fun (name, values) =>
+      s!"{String.quote (toString name)}: {String.quote values}"
     s!"\{{String.intercalate ", " headerStrings}}"
 
 instance : ToString Headers where
   toString h :=
-    let headerStrings := h.toList.map fun sigma =>
-      let res := sigma.snd
-      let value :=
-        String.intercalate ","
-          $ Array.toList
-          $ Array.map (λk => sigma.fst.getType.snd.stringify k) (by simp at res; exact res)
-      s!"{toString sigma.fst}: {value}"
+    let headerStrings := h.toList.map fun (name, values) =>
+      s!"{toString name}: {values}"
     String.intercalate "\r\n" headerStrings
 
-def Headers.empty : Headers := Lean.DHashMap.empty
+def Headers.empty : Headers := Lean.HashMap.empty
 
 /-- Adds a new value to the header map -/
-def Headers.add (headers: Headers) (name: HeaderName) (value: HeaderValue name) : Headers :=
-  let arr := headers.findD name #[]
-  let arr := arr.push value
-  headers.insert name arr
+def Headers.add (headers: Headers) (name: HeaderName) (value: String) : Headers :=
+  dbg_trace (repr name)
+  let arr := (· ++ ", " ++ value) <$> headers.find? name
+  headers.insert name (arr.getD value)
 
-/-- Adds a new value to the header map, parsing the value -/
-def Headers.add? (headers: Headers) (name: HeaderName) (value: String) : Headers :=
-  let arr := headers.findD name #[]
-  let inst := name.getType.snd
-  match inst.parse value with
-  | .some res => headers.insert name (arr.push res)
-  | .none => headers
-
-def Headers.add! (headers: Headers) (name: HeaderName) (value: String) : Headers :=
-  let arr := headers.findD name #[]
-  let inst := name.getType.snd
-  match inst.parse value with
-  | .some val =>
-    let arr := arr.push val
-    headers.insert name arr
-  | .none => headers
 /-- Get the first value of a header s-/
-def Headers.find? (headers: Headers) (name: HeaderName) : Option (HeaderValue name) :=
-  (Array.get? · 0) =<< (DHashMap.find? headers name)
+def Headers.find? (headers: Headers) (name: HeaderName) [i: HeaderVal name α] : Option α := do
+  let res ← HashMap.find? headers name
+  i.parse res.trim
 
-/-- Get all of the multiple values of a header -/
-def Headers.findAll? (headers: Headers) (name: HeaderName) : Option (HeaderValues name) :=
-  DHashMap.find? headers name
+/-- Get the first value of a header s-/
+def Headers.findRaw? (headers: Headers) (name: HeaderName) : Option String :=
+  HashMap.find? headers name

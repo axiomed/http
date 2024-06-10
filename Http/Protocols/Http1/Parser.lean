@@ -1,6 +1,7 @@
 import Http.Protocols.Http1.Data.Chunk
 import Http.Protocols.Http1.Grammar
 import Http.Data.Uri.Parser
+import Http.Data.Headers
 import Http.Data
 
 namespace Http.Protocols.Http1
@@ -68,21 +69,22 @@ private def endField (data: State) : IO (State × Nat) := do
         let data := {data with hasHost := true }
         (data, (data.uri.info.authority.map (· != value)).getD true)
     | "transfer-encoding" =>
-      let parts := value.split (· == '\n')
-                |>.map String.trim
-      if parts.contains "chunked"
+      let parts: Headers.Header .transferEncoding _ := inferInstance
+      let parts := parts.parse value
+      let parts := (Array.find? · Headers.TransferEncoding.isChunked) =<< parts
+      if let some _ := parts
           then ({data with isChunked := true}, true)
           else (data, true)
     | _ => (data, true)
 
-  let headers := data.req.headers.add? prop value
+  let headers := data.req.headers.add prop value
   pure ({ data with req := { data.req with headers }, prop := "", value := ""}, if code then 0 else 1)
 
 private def onEndFieldExt (data: State) : IO (State × Nat) := do
   let prop := data.prop.toLower
   let value := data.value
 
-  let chunkHeaders := data.chunkHeaders.add? prop value
+  let chunkHeaders := data.chunkHeaders.add prop value
   pure ({ data with chunkHeaders, prop := "", value := ""}, 0)
 
 private def onEndFieldTrailer (data: State) : IO (State × Nat) := do
@@ -104,17 +106,23 @@ private def onBody (fn: ByteArray → IO Unit) (body: ByteArray) (acc: State) : 
 /-- Processes the request line to set the HTTP method and version in the state -/
 private def onRequestLine (method: Nat) (major: Nat) (minor: Nat) (acc: State) : IO (State × Nat) := do
   let method := Option.get! $ Method.fromNumber method
-  let version := Version.mk major minor
-  let acc := {acc with req := {acc.req with version, method}}
-  return (acc, 0)
+  let version := Version.fromNumber major minor
+  match version with
+  | none => return (acc, 1)
+  | some version => do
+    let acc := {acc with req := {acc.req with version, method}}
+    return (acc, 0)
 
 /-- Processes the response line to set the HTTP method and version in the state -/
 private def onResponseLine (statusCode: Nat) (major: Nat) (minor: Nat) (acc: State) : IO (State × Nat) := do
   -- TODO: Handle error
-  let status := Option.get! $ Status.fromCode statusCode
-  let version := Version.mk major minor
-  let acc := {acc with res := {acc.res with version, status}}
-  return (acc, 0)
+  let status := Option.get! $ Status.fromCode statusCode.toUInt16
+  let version := Version.fromNumber major minor
+  match version with
+  | none => return (acc, 1)
+  | some version => do
+    let acc := {acc with res := {acc.res with version, status}}
+    return (acc, 0)
 
 /-- Finalizes the headers and sets the content length if present, checking for required conditions -/
 private def onEndHeaders {isRequest: Bool} (callback: (if isRequest then Request else Response) → IO Unit) (content: Nat) (acc: State) : IO (State × Nat) := do
@@ -150,7 +158,7 @@ def Parser.create
     :=
       let data :=
         Grammar.create
-          (onReasonPhrase := toString (λval acc => pure ({acc with res := {acc.res with reasonPhrase := acc.res.reasonPhrase.append val}}, 0)))
+          (onReasonPhrase := toString (λ_ acc => pure (acc, 0)))
           (onProp := toString (λval acc => pure ({acc with prop := acc.prop.append val}, 0)))
           (onValue := toString (λval acc => pure ({acc with value := acc.value.append val}, 0)))
           (onUrl := toByteArray onUrl)
