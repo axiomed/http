@@ -13,7 +13,7 @@ open Http.Classes
 -/
 def Date := Time.DateTime .GMT
 
-instance : Canonical Date where
+instance : Canonical (Time.DateTime .GMT) where
   repr date := RFC822.format date
 
 instance : Header .date Date where

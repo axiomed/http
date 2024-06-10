@@ -77,14 +77,14 @@ private def endField (data: State) : IO (State × Nat) := do
           else (data, true)
     | _ => (data, true)
 
-  let headers := data.req.headers.add prop value
+  let headers := data.req.headers.addRaw prop value
   pure ({ data with req := { data.req with headers }, prop := "", value := ""}, if code then 0 else 1)
 
 private def onEndFieldExt (data: State) : IO (State × Nat) := do
   let prop := data.prop.toLower
   let value := data.value
 
-  let chunkHeaders := data.chunkHeaders.add prop value
+  let chunkHeaders := data.chunkHeaders.addRaw prop value
   pure ({ data with chunkHeaders, prop := "", value := ""}, 0)
 
 private def onEndFieldTrailer (data: State) : IO (State × Nat) := do

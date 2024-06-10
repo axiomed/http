@@ -24,7 +24,7 @@ def onConnection (conn: IO.Ref Connection) (onConn: Connection → IO Unit) (req
 
 def badRequest (conn: Connection) := do
   let headers := Headers.empty
-              |>.add "Connection" "close"
+              |>.addRaw "connection" "close"
 
   let response := Response.mk (Status.badRequest) (Version.v11) headers
   let _ ← conn.write (Chunk.mk Headers.empty (ToString.toString response).toUTF8)
@@ -61,7 +61,6 @@ def readSocket
         let data ← ref.get
         let res ← IO.toUVIO $ Parser.feed data bytes
         ref.set res
-        IO.toUVIO $ IO.println s!"--- {res.error} {repr res.state}"
         if res.error ≠ 0 then
           let conn ← connRef.get
           IO.toUVIO $ badRequest conn

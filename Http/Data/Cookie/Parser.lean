@@ -36,7 +36,6 @@ private def sameSiteAttribute : Lean.Parsec SameSite := do
 -- TODO: Add 'token' parsr class satisfy instead of this
 private def parseAttribute (cookie: Cookie) : Lean.Parsec Cookie := do
   let name ← token
-  dbg_trace name
   match name.toLower with
   | "samesite" => return { cookie with sameSite := (← skipChar '=' *> sameSiteAttribute) }
   | "expires" => return { cookie with expires := (← skipChar '=' *> expiresAttribute) }

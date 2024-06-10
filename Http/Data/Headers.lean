@@ -78,10 +78,12 @@ instance : ToString Headers where
 def Headers.empty : Headers := Lean.HashMap.empty
 
 /-- Adds a new value to the header map -/
-def Headers.add (headers: Headers) (name: HeaderName) (value: String) : Headers :=
-  dbg_trace (repr name)
+def Headers.addRaw (headers: Headers) (name: HeaderName) (value: String) : Headers :=
   let arr := (· ++ ", " ++ value) <$> headers.find? name
   headers.insert name (arr.getD value)
+
+def Headers.add [i:Http.Classes.Canonical α] (headers: Headers) (name: HeaderName) (value: α) : Headers :=
+  headers.addRaw name (i.repr value)
 
 /-- Get the first value of a header s-/
 def Headers.find? (headers: Headers) (name: HeaderName) [i: HeaderVal name α] : Option α := do

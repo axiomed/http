@@ -7,7 +7,7 @@ def toHexChar (n : Nat) : Char :=
 
 def toHex (n : Nat) : String := Id.run do
   let mut value := n
-  let mut result := ""
+  let mut result := #[]
   if value == 0 then return "0"
 
   while value > 0 do
@@ -15,4 +15,4 @@ def toHex (n : Nat) : String := Id.run do
     result := result.push $ toHexChar digit
     value := value / 16
 
-  return result
+  return result.reverse.foldl String.push ""

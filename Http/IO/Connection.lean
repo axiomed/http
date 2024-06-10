@@ -56,5 +56,7 @@ def Connection.end (connection: Connection) (alive: Bool) : IO Unit := connectio
     if res.isSome then
       connection.rawWrite (ToBuffer.toBuffer #[] Chunk.zeroed)
 
+  connection.response.set Data.Response.empty
+
   if !alive then
     connection.close

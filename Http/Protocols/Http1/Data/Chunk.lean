@@ -71,7 +71,7 @@ def TrailersImp.valid (name: String.CI) : Bool :=
 def TrailersImp.add (trailers: TrailersImp) (name: String) (value: String) : TrailersImp :=
   let ci := String.CI.new name
   if TrailersImp.valid ci
-    then Headers.add trailers (Standard.parse name) value
+    then Headers.addRaw trailers (Standard.parse name) value
     else trailers
 
 inductive TrailersImp.WellFormed : TrailersImp → Prop where
