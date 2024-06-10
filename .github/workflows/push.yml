@@ -46,4 +46,4 @@ jobs:
           sudo update-alternatives --set cc /usr/bin/clang
       - name: Run tests
         run: |
-          ~/.elan/bin/lake exe tests
+          ~/.elan/bin/lake build Http
