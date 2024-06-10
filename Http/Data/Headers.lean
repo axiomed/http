@@ -19,10 +19,10 @@ import Http.Data.Headers.Auth.ProxyAuthorization
 import Http.Data.Headers.Auth.ProxyAuthenticate
 
 import Http.Data.Headers.Conditional.IfMatch
--- import Http.Data.Headers.Conditional.ifModifiedSince
--- import Http.Data.Headers.Conditional.ifNoneMatch
--- import Http.Data.Headers.Conditional.ifRange
--- import Http.Data.Headers.Conditional.ifUnmodifiedSince
+import Http.Data.Headers.Conditional.IfModifiedSince
+import Http.Data.Headers.Conditional.IfNoneMatch
+import Http.Data.Headers.Conditional.IfRange
+import Http.Data.Headers.Conditional.IfUnmodifiedSince
 
 import Http.Data.Headers.Other.Allow
 import Http.Data.Headers.Other.Date
@@ -30,6 +30,7 @@ import Http.Data.Headers.Other.Host
 import Http.Data.Headers.Other.SetCookie
 import Http.Data.Headers.Other.Connection
 
+import Http.Classes.Canonical
 import Http.Data.Headers.Name
 import CaseInsensitive
 import DHashMap
@@ -71,7 +72,7 @@ instance : Repr Headers where
 instance : ToString Headers where
   toString h :=
     let headerStrings := h.toList.map fun (name, values) =>
-      s!"{toString name}: {values}"
+      s!"{Http.Classes.Canonical.repr name}: {values}"
     String.intercalate "\r\n" headerStrings
 
 def Headers.empty : Headers := Lean.HashMap.empty
