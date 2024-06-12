@@ -105,7 +105,7 @@ private def onBody (fn: ByteArray → IO Unit) (body: ByteArray) (acc: State) : 
 
 /-- Processes the request line to set the HTTP method and version in the state -/
 private def onRequestLine (method: Nat) (major: Nat) (minor: Nat) (acc: State) : IO (State × Nat) := do
-  let method := Option.get! $ Method.fromNumber method
+  let method := Option.get! $ Method.ofNat method
   let version := Version.fromNumber major minor
   match version with
   | none => return (acc, 1)

@@ -4,7 +4,7 @@ import Lean.Data.HashMap
 namespace Http.Data.Cookie
 open Lean
 
-/-- A Jar.Entry contains a cookie, the time it was created, the time it was last accessed,  and a
+/-- A Jar.Entry contains a cookie, the time it was created, the time it was last accessed, and a
 sequence number to track the order of addition. -/
 structure Jar.Entry where
   cookie: Cookie

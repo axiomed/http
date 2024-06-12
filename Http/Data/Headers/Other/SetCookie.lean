@@ -1,6 +1,6 @@
 import Http.Data.Cookie
 import Http.Data.Headers.Name
-import Http.Classes.FromString
+import Http.Classes.Parseable
 import Http.Util.Date
 
 namespace Http.Data.Headers

@@ -1,5 +1,5 @@
 import Http.Data.Headers.Name
-import Http.Classes.FromString
+import Http.Classes.Parseable
 import Http.Util.Date
 import Time
 
@@ -13,7 +13,7 @@ open Http.Classes
 -/
 def Date := Time.DateTime .GMT
 
-instance : Canonical (Time.DateTime .GMT) where
+instance : Canonical .text (Time.DateTime .GMT) where
   repr date := RFC822.format date
 
 instance : Header .date Date where

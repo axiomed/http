@@ -1,5 +1,5 @@
 import CaseInsensitive
-import Http.Classes.Canonical
+import Http.Classes
 
 namespace Http.Data.Uri
 open Http.Classes
@@ -10,8 +10,8 @@ inductive Scheme.Standard
   | https
   deriving BEq, Repr, Inhabited
 
-instance : ToString Scheme.Standard where
-  toString
+instance : Canonical .text Scheme.Standard where
+  repr
     | .http => "http"
     | .https => "https"
 
@@ -23,15 +23,18 @@ inductive Scheme
   | custom (s: String.CI)
   deriving BEq, Repr, Inhabited
 
+instance : Canonical .text Scheme where
+  repr
+    | .standard std => Canonical.text std
+    | .custom s => Canonical.text s
+
+instance : Parseable Scheme where
+  parse
+    | "http" => some (.standard .http)
+    | "https" => some (.standard .https)
+    | text => some (.custom (String.CI.new text))
+
 def Scheme.defaultPort : Scheme → Option Nat
   | .standard .http => some 80
   | .standard .https => some 443
   | .custom _ => none
-
-instance : ToString Scheme where
-  toString
-    | .standard std => toString std
-    | .custom s => toString s
-
-instance : Canonical Scheme where
-  repr := toString

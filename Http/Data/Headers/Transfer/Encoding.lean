@@ -1,5 +1,5 @@
 import Http.Data.Headers.Name
-import Http.Classes.FromString
+import Http.Classes.Parseable
 import Http.Util.Parser
 import Lean.Data.Parsec
 
@@ -22,16 +22,17 @@ inductive TransferEncodingType
   | identity
   deriving Repr, BEq
 
-instance : FromString TransferEncodingType where
-  trie := Lean.Data.Trie.empty
+instance : Parseable TransferEncodingType where
+  parse name := Lean.Data.Trie.empty
     |>.insert "chunked" .chunked
     |>.insert "gzip" .gzip
     |>.insert "deflate" .deflate
     |>.insert "brotli" .brotli
     |>.insert "zstd" .zstd
     |>.insert "identity" .identity
+    |>.find? name
 
-instance : Canonical TransferEncodingType where
+instance : Canonical .text TransferEncodingType where
   repr
     | .chunked  => "chunked"
     | .gzip     => "gzip"
@@ -48,18 +49,18 @@ structure TransferEncoding where
 def TransferEncoding.isChunked (te: TransferEncoding) : Bool :=
   te.type == .chunked
 
-instance : Canonical TransferEncoding where
+instance : Canonical .text TransferEncoding where
   repr te :=
     let paramsStr := te.params.map (fun (k, v) => s!"{k}={v}")
     let paramsStr := String.intercalate "; " paramsStr.toList
     if paramsStr.isEmpty then
-      Canonical.repr te.type
+      Canonical.text te.type
     else
-      s!"{Canonical.repr te.type}; {paramsStr}"
+      s!"{Canonical.text te.type}; {paramsStr}"
 
 def TransferEncodingType.parser : Lean.Parsec TransferEncodingType := do
   let scheme ← token
-  let scheme := FromString.fromString scheme.toLower
+  let scheme := Parseable.parse scheme.toLower
 
   match scheme with
   | none => fail "invalid transfer encoding type"

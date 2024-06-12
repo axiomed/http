@@ -1,4 +1,7 @@
+import Http.Classes
+
 namespace Http.Data
+open Http.Classes
 
 /-- The 'Version' structure represents an HTTP version with a major and minor number. It includes
 several standard versions of the HTTP protocol, such as HTTP/0.9, HTTP/1.0,  HTTP/1.1, HTTP/2.0, and
@@ -13,17 +16,16 @@ inductive Version
   | v20
   | v30
 
-
-instance : ToString Version where
-  toString
+instance : Canonical .text Version where
+  repr
     | .v09 => "HTTP/0.9"
     | .v10 => "HTTP/1.0"
     | .v11 => "HTTP/1.1"
     | .v20 => "HTTP/2.0"
     | .v30 => "HTTP/3.0"
 
--- The default version is defined as the HTTP/1.1 version because it's one of the most used versions
--- in 2024.
+/- The default version is defined as the HTTP/1.1 version because it's one of the most used versions
+in 2024. -/
 instance : Inhabited Version where
   default := Version.v11
 
@@ -34,3 +36,11 @@ def Version.fromNumber : Nat → Nat → Option Version
   | 2, 0 => some Version.v20
   | 3, 0 => some Version.v30
   | _, _ => none
+
+/-- Converts a `Version` to its corresponding major and minor numbers as a pair. -/
+def Version.toNumber : Version → (Nat × Nat)
+  | .v09 => (0, 9)
+  | .v10 => (1, 0)
+  | .v11 => (1, 1)
+  | .v20 => (2, 0)
+  | .v30 => (3, 0)

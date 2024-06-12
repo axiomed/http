@@ -1,4 +1,4 @@
-import Http.Classes.Canonical
+import Http.Classes
 import Http.Util.Date
 
 namespace Http.Data
@@ -20,11 +20,19 @@ inductive Cookie.SameSite where
 instance : Inhabited Cookie.SameSite where
   default := .lax
 
-instance : Canonical Cookie.SameSite where
+instance : Canonical .text Cookie.SameSite where
   repr
     | .strict => "Strict"
     | .lax => "Lax"
     | .none => "None"
+
+instance : Parseable Cookie.SameSite where
+  parse str :=
+    match str.toLower with
+    | "strict" => some .strict
+    | "lax" => some .lax
+    | "none" => some .none
+    | _ => none
 
 /-- This cookie structure is based on the structure defined inside the Set-Cookie header.
 
@@ -53,25 +61,23 @@ def Cookie.new (name value: String) (quoted: Bool) : Cookie :=
   let default : Cookie := Inhabited.default
   { default with name, value, quoted }
 
-instance : Canonical Cookie where
+instance : Canonical .text Cookie where
   repr cookie := Id.run do
     let value := if cookie.quoted then String.quote cookie.value else cookie.value
+
     let mut result := s!"{cookie.name}={value}"
 
-    match cookie.expires with
-    | some res => result := s!"{result}; Expires={Http.Util.Date.RFC822.format res}"
-    | none => ()
+    if let some res := cookie.expires then
+      result := s!"{result}; Expires={Http.Util.Date.RFC822.format res}"
 
     if cookie.maxAge ≠ 0 then
       result := s!"{result}; Max-Age={cookie.maxAge}"
 
-    match cookie.domain with
-    | some domain => result := s!"{result}; Domain={domain}"
-    | none => ()
+    if let some domain := cookie.domain then
+      result := s!"{result}; Domain={domain}"
 
-    match cookie.path with
-    | some path => result := s!"{result}; Path={path}"
-    | none => ()
+    if let some path := cookie.path then
+      result := s!"{result}; Path={path}"
 
     if cookie.secure then
       result := s!"{result}; Secure"

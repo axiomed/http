@@ -1,5 +1,5 @@
 import Http.Data.Headers.Name
-import Http.Classes.FromString
+import Http.Classes.Parseable
 import Http.Data.Mime
 
 namespace Http.Data.Headers

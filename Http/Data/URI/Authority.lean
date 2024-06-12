@@ -1,5 +1,5 @@
 import CaseInsensitive
-import Http.Classes.Canonical
+import Http.Classes
 
 namespace Http.Data.Uri
 open Http.Classes
@@ -15,11 +15,11 @@ on the network.
 structure Authority where
   userInfo: Option String
   host: String
-  port: Option Port
+  port: Option String
   deriving BEq, Repr, Inhabited
 
-instance : ToString Authority where
-  toString authority :=
+instance : Canonical .text Authority where
+  repr authority :=
     let userInfo := (authority.userInfo.map (· ++ ":")).getD ""
     let port := (authority.port.map (":" ++ toString ·)).getD ""
     s!"{userInfo}{authority.host}{port}"

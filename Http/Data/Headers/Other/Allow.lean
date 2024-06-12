@@ -5,4 +5,4 @@ namespace Http.Data.Headers
 open Http.Classes
 
 instance : Header .allow Method where
-  parse := Method.fromString
+  parse := Parseable.parse

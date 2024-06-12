@@ -56,3 +56,11 @@ def parse (s: String) : Except String Mime :=
 
 def parseRange (s: String) : Except String MediaRange :=
   mimeRange.run s
+
+-- Instances
+
+instance : Parseable MediaRange where
+  parse := Except.toOption ∘ parseRange
+
+instance : Parseable Mime where
+  parse := Except.toOption ∘ parse

@@ -21,7 +21,7 @@ structure Chunk where
 instance : Serialize Chunk where
   serialize chunk := do
     BufferBuilder.write (toHex chunk.data.size)
-    BufferBuilder.write (toString chunk.extensions)
+    BufferBuilder.write (Canonical.text chunk.extensions)
     BufferBuilder.write "\r\n"
     BufferBuilder.write chunk.data
     BufferBuilder.write "\r\n"

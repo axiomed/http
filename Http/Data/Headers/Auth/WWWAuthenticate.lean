@@ -1,6 +1,6 @@
 import Http.Data.Headers.Auth.Authorization
 import Http.Data.Headers.Name
-import Http.Classes.FromString
+import Http.Classes.Parseable
 import Http.Util.Parser
 import Lean.Data.Parsec
 
@@ -18,14 +18,14 @@ structure Challenge where
   params : Array (String × String)
   deriving Repr
 
-instance : Canonical Challenge where
+instance : Canonical .text Challenge where
   repr challenge :=
     let paramsStr := challenge.params.map (fun (k, v) => s!"{k}={v}")
     let paramsStr := String.intercalate ", " paramsStr.toList
     if paramsStr.isEmpty then
-      Canonical.repr challenge.scheme
+      Canonical.text challenge.scheme
     else
-      s!"{Canonical.repr challenge.scheme} {paramsStr}"
+      s!"{Canonical.text challenge.scheme} {paramsStr}"
 
 def Challenge.parser : Lean.Parsec Challenge := do
   let scheme ← AuthorizationScheme.parser

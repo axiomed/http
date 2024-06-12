@@ -1,4 +1,7 @@
+import Http.Classes
+
 namespace Http.Data
+open Http.Classes
 
 /-- A method is a verb that describes the action to be performed.
 
@@ -18,6 +21,44 @@ inductive Method where
 
 namespace Method
 
+instance : Canonical .text Method where
+  repr
+    | .get     => "GET"
+    | .head    => "HEAD"
+    | .post    => "POST"
+    | .put     => "PUT"
+    | .delete  => "DELETE"
+    | .connect => "CONNECT"
+    | .options => "OPTIONS"
+    | .trace   => "TRACE"
+    | .patch   => "PATCH"
+
+instance : Parseable Method where
+  parse
+    | "GET"     => some .get
+    | "HEAD"    => some .head
+    | "POST"    => some .post
+    | "PUT"     => some .put
+    | "DELETE"  => some .delete
+    | "CONNECT" => some .connect
+    | "OPTIONS" => some .options
+    | "TRACE"   => some .trace
+    | "PATCH"   => some .patch
+    | _         => none
+
+/-- Transform arbitrary Nat into a Method, it's useful for the parser function that returns an Int. -/
+def ofNat : Nat → Option Method
+    | 0 => some .head
+    | 1 => some .get
+    | 2 => some .post
+    | 3 => some .put
+    | 4 => some .delete
+    | 5 => some .options
+    | 6 => some .connect
+    | 7 => some .trace
+    | 8 => some .patch
+    | _ => none
+
 /-- Request methods are considered safe if their defined semantics are essentially read-only
 
 * Reference: https://httpwg.org/specs/rfc9110.html#metho  d.properties
@@ -36,38 +77,11 @@ def isIdempotent : Method → Prop
   | .put | .delete => True
   | _ => False
 
-instance : ToString Method where
-  toString
-    | .get     => "GET"
-    | .head    => "HEAD"
-    | .post    => "POST"
-    | .put     => "PUT"
-    | .delete  => "DELETE"
-    | .connect => "CONNECT"
-    | .options => "OPTIONS"
-    | .trace   => "TRACE"
-    | .patch   => "PATCH"
+/-- Checks if the given method allows a request body. GET and HEAD methods do not typically allow
+request bodies.
 
-def fromString : String → Option Method
-    | "GET"     => some .get
-    | "HEAD"    => some .head
-    | "POST"    => some .post
-    | "PUT"     => some .put
-    | "DELETE"  => some .delete
-    | "CONNECT" => some .connect
-    | "OPTIONS" => some .options
-    | "TRACE"   => some .trace
-    | "PATCH"   => some .patch
-    | _         => none
-
-def fromNumber : Nat → Option Method
-    | 0 => some .head
-    | 1 => some .get
-    | 2 => some .post
-    | 3 => some .put
-    | 4 => some .delete
-    | 5 => some .options
-    | 6 => some .connect
-    | 7 => some .trace
-    | 8 => some .patch
-    | _ => none
+* Reference: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods
+-/
+def allowsRequestBody : Method → Bool
+  | .get | .head => False
+  | _ => True

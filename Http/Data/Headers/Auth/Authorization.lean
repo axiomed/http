@@ -1,5 +1,5 @@
 import Http.Data.Headers.Name
-import Http.Classes.FromString
+import Http.Classes.Parseable
 import Http.Util.Parser
 import Lean.Data.Parsec
 
@@ -21,7 +21,7 @@ inductive AuthorizationScheme
   | vapid
   deriving Repr
 
-instance : Canonical AuthorizationScheme where
+instance : Canonical .text AuthorizationScheme where
   repr
     | .basic => "Basic"
     | .bearer => "Bearer"
@@ -34,8 +34,8 @@ instance : Canonical AuthorizationScheme where
     | .scrumsha256 => "SCRAM-SHA-256"
     | .vapid => "vapid"
 
-instance : FromString AuthorizationScheme where
-  trie := Lean.Data.Trie.empty
+instance : Parseable AuthorizationScheme where
+  parse name := Lean.Data.Trie.empty
       |>.insert "basic" .basic
       |>.insert "bearer" .bearer
       |>.insert "digest" .digest
@@ -46,10 +46,11 @@ instance : FromString AuthorizationScheme where
       |>.insert "scram-sha- 1" .scramsha1
       |>.insert "scrum-sha-256" .scrumsha256
       |>.insert "vapid" .vapid
+      |>.find? name
 
 def AuthorizationScheme.parser : Lean.Parsec AuthorizationScheme := do
   let scheme ← token
-  let scheme := FromString.fromString (α := AuthorizationScheme) scheme.toLower
+  let scheme := Parseable.parse (α := AuthorizationScheme) scheme.toLower
 
   match scheme with
   | none => fail "invalid scheme"
@@ -64,8 +65,8 @@ structure Authorization where
   data : String
   deriving Repr
 
-instance : Canonical Authorization where
-  repr x := s!"{Canonical.repr x.scheme} {x.data}"
+instance : Canonical .text Authorization where
+  repr x := s!"{Canonical.text x.scheme} {x.data}"
 
 def Authorization.parser : Lean.Parsec Authorization := do
   let scheme ← AuthorizationScheme.parser

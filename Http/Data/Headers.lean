@@ -30,13 +30,14 @@ import Http.Data.Headers.Other.Host
 import Http.Data.Headers.Other.SetCookie
 import Http.Data.Headers.Other.Connection
 
-import Http.Classes.Canonical
+import Http.Classes
 import Http.Data.Headers.Name
 import CaseInsensitive
 import DHashMap
 import Lean
 
 namespace Http.Data
+open Http.Classes
 open Http.Data.Headers
 open Lean
 
@@ -69,10 +70,10 @@ instance : Repr Headers where
       s!"{String.quote (toString name)}: {String.quote values}"
     s!"\{{String.intercalate ", " headerStrings}}"
 
-instance : ToString Headers where
-  toString h :=
+instance : Canonical .text Headers where
+  repr h :=
     let headerStrings := h.toList.map fun (name, values) =>
-      s!"{Http.Classes.Canonical.repr name}: {values}"
+      s!"{Canonical.text name}: {values}"
     String.intercalate "\r\n" headerStrings
 
 def Headers.empty : Headers := Lean.HashMap.empty
@@ -82,7 +83,7 @@ def Headers.addRaw (headers: Headers) (name: HeaderName) (value: String) : Heade
   let arr := (· ++ ", " ++ value) <$> headers.find? name
   headers.insert name (arr.getD value)
 
-def Headers.add [i:Http.Classes.Canonical α] (headers: Headers) (name: HeaderName) (value: α) : Headers :=
+def Headers.add [i:Canonical .text α] (headers: Headers) (name: HeaderName) (value: α) : Headers :=
   headers.addRaw name (i.repr value)
 
 /-- Get the first value of a header s-/

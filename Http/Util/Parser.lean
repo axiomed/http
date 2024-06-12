@@ -13,33 +13,59 @@ def tokenMap : Array Nat := #[
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]
 
+def cookieOctetMap : Array Nat := #[
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+@[inline]
+def isASCII (c: Char) : Bool :=
+  c.val < 256
+
+@[inline]
+def isControl (c : Char) : Bool :=
+  c.val < 0x20 ∨ c.val = 0x7F
+
+@[inline]
 def isToken (c: Char) : Bool :=
   c.toNat < 256
   ∧ tokenMap[c.toNat.toUInt8.toNat]! = 1
 
+@[inline]
+def isCookieOctet (c: Char) : Bool :=
+  c.toNat < 256
+  ∧ cookieOctetMap[c.toNat.toUInt8.toNat]! = 1
+
+@[inline]
 def isAlpha (c : Char) : Bool :=
   (c ≥ 'a' && c ≤ 'z') || (c ≥ 'A' && c ≤ 'Z')
 
+@[inline]
 def isDigit (c : Char) : Bool :=
   c ≥ '0' && c ≤ '9'
 
+@[inline]
 def isRestrictedFirst (c : Char) : Bool :=
   isAlpha c || isDigit c
 
+@[inline]
 def isRestrictedChar (c : Char) : Bool :=
   isAlpha c || isDigit c || c == '!' || c == '#' || c == '$' ||
   c == '&' || c == '-' || c == '^' || c == '_' || c == '.' || c == '+'
 
-/--
-token = 1*any CHAR except CTLs or separators
-separators = "(" | ")" | "<" | ">" | "@"
-           | "," | ";" | ":" | "\" | <">
-           | "/" | "[" | "]" | "?" | "="
-           | "{" | "}" | SP | HT
--/
-
 @[inline]
 def tokenChar : Lean.Parsec Char := satisfy isToken
+
+@[inline]
+def cookieOctetChar : Lean.Parsec Char := satisfy isCookieOctet
+
+@[inline]
+def cookieOctet : Lean.Parsec String := many1Chars cookieOctetChar
 
 @[inline]
 def token : Lean.Parsec String := many1Chars tokenChar

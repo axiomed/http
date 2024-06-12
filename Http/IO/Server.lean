@@ -5,6 +5,7 @@ import Http.Data
 import Http.IO.Buffer
 import Http.IO.Server.Config
 import Http.IO.Connection
+import Http.Classes
 import LibUV
 
 namespace Http.IO.Server
@@ -13,6 +14,7 @@ namespace Http.IO.Server
 
 open Http.Protocols.Http1.Data
 open Http.Protocols.Http1
+open Http.Classes
 open Http.Data
 
 def IO.toUVIO (act: IO α) : UV.IO α := IO.toEIO (λx => UV.Error.user x.toString) act
@@ -27,7 +29,7 @@ def badRequest (conn: Connection) := do
               |>.addRaw "connection" "close"
 
   let response := Response.mk (Status.badRequest) (Version.v11) headers
-  let _ ← conn.write (Chunk.mk Headers.empty (ToString.toString response).toUTF8)
+  let _ ← conn.write (Chunk.mk Headers.empty (Canonical.text response).toUTF8)
   conn.flushBody
   conn.close
 

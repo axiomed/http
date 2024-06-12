@@ -1,6 +1,6 @@
 import Http.Classes.Standard
 import Http.Classes.Canonical
-import Http.Classes.FromString
+import Http.Classes.Parseable
 import CaseInsensitive
 
 namespace Http.Data.Headers
@@ -35,8 +35,8 @@ inductive HeaderName.Standard where
   | wwwAuthenticate
   deriving Inhabited, BEq, Repr, Hashable
 
-instance : FromString HeaderName.Standard where
-  trie := Lean.Data.Trie.empty
+instance : Parseable HeaderName.Standard where
+  parse name := Lean.Data.Trie.empty
     |>.insert "accept" .accept
     |>.insert "accept-charset" .acceptCharset
     |>.insert "accept-encoding" .acceptEncoding
@@ -63,6 +63,7 @@ instance : FromString HeaderName.Standard where
     |>.insert "set-cookie" .setCookie
     |>.insert "transfer-encoding" .transferEncoding
     |>.insert "www-authenticate" .wwwAuthenticate
+    |>.find? name
 
 instance : ToString HeaderName.Standard where
   toString
@@ -107,7 +108,7 @@ instance : ToString HeaderName where
     | .standard std => toString std
     | .custom str => toString str
 
-instance : Canonical HeaderName where
+instance : Canonical .text HeaderName where
   repr name :=
     let lower := toString name
     let parts := lower.split (· == '-')
@@ -128,7 +129,7 @@ instance [i : Header r α] : HeaderVal (.standard r) α where
 
 instance : Coe String HeaderName where
   coe str :=
-    match FromString.fromString str.toLower with
+    match Parseable.parse str.toLower with
     | some res => .standard res
     | none => .custom (String.CI.new str)
 
