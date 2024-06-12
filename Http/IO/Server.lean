@@ -2,7 +2,6 @@ import Http.Protocols.Http1.Parser
 import Http.Protocols.Http1.Data
 import Http.Data.Uri.Parser
 import Http.Data
-import Http.IO.Buffer
 import Http.IO.Server.Config
 import Http.IO.Connection
 import Http.Classes
@@ -19,21 +18,26 @@ open Http.Data
 
 def IO.toUVIO (act: IO α) : UV.IO α := IO.toEIO (λx => UV.Error.user x.toString) act
 
+def simpleStatusResponse (status: Status) (conn: Connection) := do
+  conn.response.modify λres => res
+    |>.withHeader "connection" "close"
+    |>.withStatus status
+  conn.end false
+
+def handleError (conn: Connection) : ParsingError → IO Unit
+  | .invalidMessage => simpleStatusResponse .badRequest conn
+  | .uriTooLong => simpleStatusResponse .uriTooLong conn
+  | .bodyTooLong => simpleStatusResponse .payloadTooLarge conn
+  | .headerTooLong => simpleStatusResponse .requestHeaderFieldsTooLarge conn
+  | .headersTooLong => simpleStatusResponse .requestHeaderFieldsTooLarge conn
+
 def onConnection (conn: IO.Ref Connection) (onConn: Connection → IO Unit) (request: Request) : IO Unit := do
   conn.modify (λx => {x with request})
   let conn ← conn.get
   onConn conn
 
-def badRequest (conn: Connection) := do
-  let headers := Headers.empty
-              |>.addRaw "connection" "close"
-
-  let response := Response.mk (Status.badRequest) (Version.v11) headers
-  let _ ← conn.write (Chunk.mk Headers.empty (Canonical.text response).toUTF8)
-  conn.flushBody
-  conn.close
-
 def readSocket
+  (config: Config)
   (socket: UV.TCP)
   (onConn: Connection → IO Unit)
   (onData: Connection → Chunk → IO Unit)
@@ -47,7 +51,7 @@ def readSocket
       let conn ← connRef.get
       func conn y
 
-    let data := Parser.create true
+    let data := Parser.create config.messageConfig true
       (onConnection connRef onConn)
       (readRef (onData · ∘ Chunk.mk Headers.empty))
       (readRef (onData ·))
@@ -61,13 +65,16 @@ def readSocket
         socket.stop
       | .ok bytes => do
         let data ← ref.get
-        let res ← IO.toUVIO $ Parser.feed data bytes
-        ref.set res
-        if res.error ≠ 0 then
-          let conn ← connRef.get
-          IO.toUVIO $ badRequest conn
+        let res ← IO.toUVIO $ Parser.feed config.messageConfig data bytes
+        match res with
+        | .ok res => ref.set res
+        | .error err =>
+            let conn ← connRef.get
+            IO.toUVIO $ handleError conn err
 
-def server (host: String) (port: UInt16)
+def server
+  (config: Config)
+  (host: String) (port: UInt16)
   (onConn: Connection → IO Unit)
   (onData: Connection → Chunk → IO Unit)
   (onTrailer: Connection → Trailers → IO Unit)
@@ -80,6 +87,6 @@ def server (host: String) (port: UInt16)
     server.listen 128 do
       let client ← loop.mkTCP
       server.accept client
-      readSocket client onConn onData onTrailer
+      readSocket config client onConn onData onTrailer
     let _ ← loop.run
   UV.IO.run go

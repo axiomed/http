@@ -48,7 +48,7 @@ parser Grammar in Lean where
   node schema where
     is alpha schema
     peek ':' (end schema schemaDelim)
-    otherwise (error 20000)
+    otherwise (error 1)
 
   node schemaDelim where
     is "://" (start host server)

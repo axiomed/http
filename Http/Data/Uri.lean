@@ -14,14 +14,11 @@ open Lean
 * Reference: https://www.rfc-editor.org/rfc/rfc3986.html#section-3.2.2
 -/
 structure Uri where
-  authority : Option String
+  authority : Uri.Authority
   path      : Option String
   query     : Option String
   fragment  : Option String
-  scheme    : Option String
-  port      : Option String
   deriving BEq, Repr, Inhabited
-
 
 def Uri.encode (input: String) : String :=
     input.toUTF8.foldl (λs c => s ++ encodeChar c) ""
@@ -69,14 +66,13 @@ def Uri.componentDecode (input: String) : Option String := Id.run do
 
 instance : Canonical .text Uri where
   repr u :=
-    let scheme := Option.getD (u.scheme.map (· ++ "://")) ""
-    let authority :=  Option.getD (Canonical.text <$> u.authority) ""
+    let authority := Canonical.text u.authority
     let path := Option.getD (u.path.map ("/" ++ ·)) ""
     let query := Option.getD (u.query.map toString) ""
-    let port := Option.getD (u.path.map (":" ++ ·)) ""
     let fragment := Option.getD (u.fragment.map (fun s => "#" ++ toString s)) ""
-    String.join [scheme, authority, port, path, query, fragment]
+    let notEncoded := String.join [authority, path, query, fragment]
+    Uri.encode notEncoded
 
 namespace Uri
 
-def empty : Uri := Uri.mk none none none none none none
+def empty : Uri := Uri.mk Inhabited.default none none none

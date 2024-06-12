@@ -14,12 +14,12 @@ on the network.
 -/
 structure Authority where
   userInfo: Option String
-  host: String
-  port: Option String
+  host: Option String
+  port: Option Port
   deriving BEq, Repr, Inhabited
 
 instance : Canonical .text Authority where
   repr authority :=
     let userInfo := (authority.userInfo.map (· ++ ":")).getD ""
     let port := (authority.port.map (":" ++ toString ·)).getD ""
-    s!"{userInfo}{authority.host}{port}"
+    s!"{userInfo}{authority.host.getD ""}{port}"

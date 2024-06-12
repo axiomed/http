@@ -1,15 +1,15 @@
 import Http.Protocols.Http1.Parser
 import Http.Protocols.Http1.Data
-import Http.IO.Buffer
 import Http.Data.Uri.Parser
+import Http.Classes
 import Http.Data
 import LibUV
 
 namespace Http.IO
-
 open Http.Protocols.Http1.Data
 open Http.Data.Headers
 open Http.Data
+open Http.Classes
 
 structure Connection where
   isClosing: IO.Ref Bool
@@ -17,14 +17,14 @@ structure Connection where
   isHead: Bool
   request: Data.Request
   response: IO.Ref Data.Response
-  buffer: IO.Ref Buffer
+  buffer: IO.Ref (Array ByteArray)
   socket: UV.TCP
 
 def Connection.new (socket: UV.TCP) : UV.IO Connection := do
   let isClosing ← IO.mkRef false
   let buffer ← IO.mkRef #[ByteArray.empty]
   let response ← IO.mkRef Data.Response.empty
-  return { isClosing, isHead := false, isChunked := true, request := Data.Request.empty, socket, buffer, response }
+  return { isClosing, isHead := false, isChunked := false, request := Data.Request.empty, socket, buffer, response }
 
 def Connection.guard (connection: Connection) (func: IO Unit) : IO Unit := do
   let isClosing ← connection.isClosing.get
@@ -34,10 +34,12 @@ def Connection.close (connection: Connection) : IO Unit := connection.guard do
   UV.IO.run connection.socket.stop
   connection.isClosing.set true
 
-def Connection.write (connection: Connection) (data: Chunk) : IO Unit := connection.guard do
-  connection.buffer.modify (ToBuffer.toBuffer · data)
+def Connection.writeStr (connection: Connection) (data: String) : IO Unit := connection.guard do
+  if connection.isChunked
+    then connection.buffer.modify (λx => x.push $ String.toUTF8 data)
+    else connection.buffer.modify (λx => x.push $ Canonical.binary (Chunk.fromString data))
 
-def Connection.rawWrite (connection: Connection) (buffer: Buffer) : IO Unit := do
+def Connection.rawWrite (connection: Connection) (buffer: Array ByteArray) : IO Unit := do
   UV.IO.run do let _ ← connection.socket.write buffer (λ_ => pure ())
 
 def Connection.flushBody (connection: Connection) : IO Unit := connection.guard do
@@ -48,13 +50,11 @@ def Connection.flushBody (connection: Connection) : IO Unit := connection.guard 
 def Connection.end (connection: Connection) (alive: Bool) : IO Unit := connection.guard do
   let response ← connection.response.get
 
-  connection.rawWrite (ToBuffer.toBuffer #[] response)
+  connection.rawWrite #[String.toUTF8 $ Canonical.text response]
   connection.flushBody
 
-  if let some res := response.headers.find? HeaderName.Standard.transferEncoding then
-    let res := res.find? Headers.TransferEncoding.isChunked
-    if res.isSome then
-      connection.rawWrite (ToBuffer.toBuffer #[] Chunk.zeroed)
+  if connection.isChunked then
+      connection.rawWrite #[Canonical.binary Chunk.zeroed]
 
   connection.response.set Data.Response.empty
 

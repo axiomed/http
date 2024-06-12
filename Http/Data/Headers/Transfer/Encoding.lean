@@ -20,17 +20,19 @@ inductive TransferEncodingType
   | brotli
   | zstd
   | identity
-  deriving Repr, BEq
+  deriving Repr, BEq, Inhabited
+
+private def standard : Lean.Data.Trie TransferEncodingType :=
+  Lean.Data.Trie.empty
+  |>.insert "chunked" .chunked
+  |>.insert "gzip" .gzip
+  |>.insert "deflate" .deflate
+  |>.insert "brotli" .brotli
+  |>.insert "zstd" .zstd
+  |>.insert "identity" .identity
 
 instance : Parseable TransferEncodingType where
-  parse name := Lean.Data.Trie.empty
-    |>.insert "chunked" .chunked
-    |>.insert "gzip" .gzip
-    |>.insert "deflate" .deflate
-    |>.insert "brotli" .brotli
-    |>.insert "zstd" .zstd
-    |>.insert "identity" .identity
-    |>.find? name
+  parse name := standard.find? name
 
 instance : Canonical .text TransferEncodingType where
   repr

@@ -44,3 +44,8 @@ def Version.toNumber : Version → (Nat × Nat)
   | .v11 => (1, 1)
   | .v20 => (2, 0)
   | .v30 => (3, 0)
+
+def Version.lt (x y : Version) : Bool :=
+  let x := x.toNumber
+  let y := y.toNumber
+  x.1 < y.1 ∨ x.2 < y.2

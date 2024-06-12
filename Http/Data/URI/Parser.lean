@@ -3,13 +3,21 @@ import Http.Data.Uri
 
 namespace Http.Data.Uri
 
+structure Uri.State where
+  authority : Option String
+  path      : Option String
+  query     : Option String
+  fragment  : Option String
+  scheme    : Option String
+  port      : Option String
+  deriving Inhabited
+
 /-! Defines an incremental parser handler using the `Grammar` module. This parser is designed to handle
     URI components incrementally.
 -/
+abbrev Parser := Grammar.Data Uri.State
 
-abbrev Parser := Grammar.Data Http.Data.Uri
-
-private def setField (func: String → Uri → Uri) : Nat → Nat → ByteArray → Uri → IO (Uri × Nat) :=
+private def setField (func: String → Uri.State → Uri.State) : Nat → Nat → ByteArray → Uri.State → IO (Uri.State × Nat) :=
   fun st en bs acc => pure (func (String.fromUTF8! $ bs.extract st en) acc, 0)
 
 /-- Creates a new parser structure. This parser uses various field-setting functions to update the
@@ -37,6 +45,16 @@ def Parser.feed (parser: Parser) (data: ByteArray) : IO Parser :=
 /-- Retrieves the parsed URI data from the parser. This function extracts the accumulated URI
 information from the parser. -/
 def Parser.data (parser: Parser) : Except Nat Uri :=
-  if parser.error ≠ 0
-    then .error parser.error
-    else .ok (Grammar.Data.info parser)
+  if parser.error ≠ 0 then
+    .error parser.error
+  else
+    let state := Grammar.Data.info parser
+    let port := state.port.map (· |> String.toNat! |>.toUInt16)
+    let (userinfo, host) :=
+      match state.authority.getD "" |>.split (· = '@') with
+      | [userinfo, host] => (some userinfo, some host)
+      | [host] => (none, some host)
+      | [] => (none, none)
+      | _ => panic "impossible uri"
+    let authority := Authority.mk userinfo host port
+    .ok (Uri.mk authority state.path state.query state.fragment)

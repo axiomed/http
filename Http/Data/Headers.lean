@@ -83,8 +83,8 @@ def Headers.addRaw (headers: Headers) (name: HeaderName) (value: String) : Heade
   let arr := (· ++ ", " ++ value) <$> headers.find? name
   headers.insert name (arr.getD value)
 
-def Headers.add [i:Canonical .text α] (headers: Headers) (name: HeaderName) (value: α) : Headers :=
-  headers.addRaw name (i.repr value)
+def Headers.add [Canonical .text α] (headers: Headers) (name: HeaderName) (value: α) : Headers :=
+  headers.addRaw name (Canonical.text value)
 
 /-- Get the first value of a header s-/
 def Headers.find? (headers: Headers) (name: HeaderName) [i: HeaderVal name α] : Option α := do

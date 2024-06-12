@@ -163,7 +163,7 @@ parser Grammar in Lean where
     node selectLineEnd where
       select endField
         | 0 => fieldLineEnd
-        default => error 1
+        default => error 22
 
     node fieldLineEnd where
       is "\r\n" fieldLineStart
@@ -197,12 +197,17 @@ parser Grammar in Lean where
 
     node chunkExtensionColon where
       is "=" (start value chunkExtensionVal)
-      otherwise (call endFieldExt chunkExtension)
+      otherwise callFieldExt
 
     node chunkExtensionVal where
       is token chunkExtensionVal
       is "\"" chunkExtensionValStr
-      otherwise (end value (call endFieldExt chunkExtension))
+      otherwise (end value callFieldExt)
+
+    node callFieldExt where
+      select endFieldExt
+        | 0 => chunkExtension
+        default => error 22
 
     node chunkExtensionValStr where
       is "\"" (end value chunkExtension)
@@ -242,7 +247,12 @@ parser Grammar in Lean where
       any trailerValue
 
     node trailerFieldEnd where
-      is "\r\n" (call endFieldTrailer trailer)
+      is "\r\n" callFieldTrailer
+
+    node callFieldTrailer where
+      select endFieldTrailer
+        | 0 => trailer
+        default => error 22
 
     node theEnd where
       otherwise (call endRequest (call (store contentLength 0) statusLine))

@@ -8,12 +8,16 @@ open Http.Classes
 inductive Scheme.Standard
   | http
   | https
+  | ws
+  | wss
   deriving BEq, Repr, Inhabited
 
 instance : Canonical .text Scheme.Standard where
   repr
     | .http => "http"
     | .https => "https"
+    | .ws => "ws"
+    | .wss => "wss"
 
 /-- The scheme refers to a specification for the rest of the URI. It assing meaning for part of it.
 * Reference: https://www.rfc-editor.org/rfc/rfc3986.html#section-3.1
@@ -36,5 +40,7 @@ instance : Parseable Scheme where
 
 def Scheme.defaultPort : Scheme → Option Nat
   | .standard .http => some 80
+  | .standard .ws => some 80
   | .standard .https => some 443
+  | .standard .wss => some 443
   | .custom _ => none

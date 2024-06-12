@@ -1,17 +1,18 @@
-import Http.Protocols.Http1.Data.Chunk
+import Http.Protocols.Http1.Data
 import Http.Protocols.Http1.Grammar
+import Http.IO.Server.Config
 import Http.Data.Uri.Parser
 import Http.Data.Headers
 import Http.Data
 
 namespace Http.Protocols.Http1
+open Http.Protocols.Http1.Data
+open Http.IO.Server
+open Http.Data
 
 /-! This module handles HTTP/1.1 protocol parsing and state management. It includes functions for
-handling URL, fields, and headers of an HTTP request.
+handling URI, fields, and headers of an HTTP request.
 -/
-
-open Http.Protocols.Http1.Data
-open Http.Data
 
 /-- State structure to keep track of the request or repsonse that we are parsing right now -/
 structure State where
@@ -20,6 +21,9 @@ structure State where
 
   prop : String
   value : String
+
+  bodySize : Nat
+  uriSize : Nat
 
   contentLength : Option Nat
   hasHost : Bool
@@ -34,8 +38,10 @@ abbrev Parser := Grammar.Data State
 /-- Creates an initial empty state for parsing with a given URI parser -/
 def State.empty : State :=
   { hasHost := false
+  , uriSize := 0
   , chunkHeaders := Headers.empty
   , isChunked := false
+  , bodySize := 0
   , req := Request.empty
   , res := Response.empty
   , contentLength := none
@@ -44,19 +50,19 @@ def State.empty : State :=
   , trailer := Inhabited.default
   , uri := Uri.Parser.create }
 
-/-- Processes a URL fragment and updates the URI in the state -/
-private def onUrl (str: ByteArray) (data: State) : IO (State × Nat) := do
+/-- Processes a URI fragment and updates the URI in the state -/
+private def onUri (str: ByteArray) (data: State) : IO (State × Nat) := do
   let uri ← Uri.Parser.feed data.uri str
-  pure ({ data with uri }, 0)
+  pure ({ data with uri, uriSize := data.uriSize + str.size }, 0)
 
-/-- Finalizes the URL parsing and updates the request's URI field -/
-private def endUrl (data: State) : IO (State × Nat) := do
+/-- Finalizes the URI parsing and updates the request's URI field -/
+private def endUri (data: State) : IO (State × Nat) := do
   match data.uri.data with
   | .ok uri => pure ({ data with uri := Uri.Parser.create, req := {data.req with uri}}, 0)
   | .error _ => pure (data, 1)
 
 /-- Processes and finalizes a field (header) in the HTTP request -/
-private def endField (data: State) : IO (State × Nat) := do
+private def endField (config: MessageConfig) (data: State) : IO (State × Nat) := do
   let prop := data.prop.toLower
   let value := data.value
 
@@ -77,19 +83,28 @@ private def endField (data: State) : IO (State × Nat) := do
           else (data, true)
     | _ => (data, true)
 
+  if value.length > config.maxHeaderSize ∨ prop.length > config.maxHeaderSize then
+    return (data, 1)
+
   let headers := data.req.headers.addRaw prop value
   pure ({ data with req := { data.req with headers }, prop := "", value := ""}, if code then 0 else 1)
 
-private def onEndFieldExt (data: State) : IO (State × Nat) := do
+private def onEndFieldExt (config: MessageConfig) (data: State) : IO (State × Nat) := do
   let prop := data.prop.toLower
   let value := data.value
+
+  if value.length > config.maxHeaderSize ∨ prop.length > config.maxHeaderSize then
+    return (data, 1)
 
   let chunkHeaders := data.chunkHeaders.addRaw prop value
   pure ({ data with chunkHeaders, prop := "", value := ""}, 0)
 
-private def onEndFieldTrailer (data: State) : IO (State × Nat) := do
+private def onEndFieldTrailer (config: MessageConfig) (data: State) : IO (State × Nat) := do
   let prop := data.prop.toLower
   let value := data.value
+
+  if value.length > config.maxHeaderSize ∨ prop.length > config.maxHeaderSize then
+    return (data, 1)
 
   let trailer := data.trailer.add prop value
   pure ({ data with trailer, prop := "", value := ""}, 0)
@@ -101,7 +116,7 @@ private def endProp (data: State) : IO (State × Nat) := do
 /-- Handles the body of the HTTP request and updates the request with the body content -/
 private def onBody (fn: ByteArray → IO Unit) (body: ByteArray) (acc: State) : IO (State × Nat) := do
   fn body
-  pure (acc, 0)
+  pure ({acc with bodySize := acc.bodySize + body.size}, 0)
 
 /-- Processes the request line to set the HTTP method and version in the state -/
 private def onRequestLine (method: Nat) (major: Nat) (minor: Nat) (acc: State) : IO (State × Nat) := do
@@ -149,6 +164,7 @@ private def onEndRequest (fn: Trailers → IO Unit) (acc: State) : IO (State × 
 
 /-- Creates the HTTP request parser with the provided body callback -/
 def Parser.create
+    (config: MessageConfig)
     (isRequest: Bool)
     (endHeaders: (if isRequest then Request else Response) → IO Unit)
     (endBody: ByteArray → IO Unit)
@@ -161,16 +177,16 @@ def Parser.create
           (onReasonPhrase := toString (λ_ acc => pure (acc, 0)))
           (onProp := toString (λval acc => pure ({acc with prop := acc.prop.append val}, 0)))
           (onValue := toString (λval acc => pure ({acc with value := acc.value.append val}, 0)))
-          (onUrl := toByteArray onUrl)
+          (onUrl := toByteArray onUri)
           (onBody := toByteArray (onBody endBody))
           (onChunkData := toByteArray (onChunk endChunk))
           (onEndHeaders := onEndHeaders endHeaders)
           (onEndProp := endProp)
-          (onEndUrl := endUrl)
-          (onEndField := endField)
+          (onEndUrl := endUri)
+          (onEndField := endField config)
           (onEndRequestLine := onRequestLine)
-          (onEndFieldExt := onEndFieldExt)
-          (onEndFieldTrailer := onEndFieldTrailer)
+          (onEndFieldExt := onEndFieldExt config)
+          (onEndFieldTrailer := onEndFieldTrailer config)
           (onEndRequest := onEndRequest endTrailers)
           (onEndResponseLine := onResponseLine)
           State.empty
@@ -183,7 +199,38 @@ def Parser.create
       | some res => some $ res.append str
       | none => some str
 
+inductive ParsingError where
+  | invalidMessage
+  | uriTooLong
+  | bodyTooLong
+  | headerTooLong
+  | headersTooLong
+
 /-- Feeds data into the parser. This function takes a parser and a ByteArray, and processes the
 data to update the parser state incrementally. -/
-def Parser.feed (parser: Parser) (data: ByteArray) : IO Parser :=
-  Grammar.parse parser data
+def Parser.feed (options: MessageConfig) (parser: Parser) (data: ByteArray) : IO (Except ParsingError Parser) := do
+  let parser ← Grammar.parse parser data
+
+  if parser.error = 22 then
+    return .error .headerTooLong
+
+  if parser.error ≠ 0 then
+    return .error .invalidMessage
+
+  if let some size := options.maxRequestBody then
+    if parser.info.bodySize > size then
+      return .error .bodyTooLong
+
+  if parser.info.uriSize > options.maxURISize then
+    return .error .uriTooLong
+
+  if parser.info.value.length > options.maxHeaderSize ∨
+    parser.info.prop.length > options.maxHeaderSize then
+    return .error .headerTooLong
+
+  if parser.info.chunkHeaders.size > options.maxHeaders ∨
+     parser.info.req.headers.size > options.maxHeaders ∨
+     parser.info.trailer.1.size > options.maxHeaders then
+    return .error .headersTooLong
+
+  return .ok parser

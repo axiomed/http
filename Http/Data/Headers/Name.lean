@@ -35,35 +35,37 @@ inductive HeaderName.Standard where
   | wwwAuthenticate
   deriving Inhabited, BEq, Repr, Hashable
 
+private def standard : Lean.Data.Trie HeaderName.Standard :=
+  Lean.Data.Trie.empty
+  |>.insert "accept" .accept
+  |>.insert "accept-charset" .acceptCharset
+  |>.insert "accept-encoding" .acceptEncoding
+  |>.insert "accept-language" .acceptLanguage
+  |>.insert "age" .age
+  |>.insert "allow" .allow
+  |>.insert "authorization" .authorization
+  |>.insert "cache-control" .cacheControl
+  |>.insert "connection" .connection
+  |>.insert "content-encoding" .contentEncoding
+  |>.insert "content-length" .contentLength
+  |>.insert "content-location" .contentLocation
+  |>.insert "content-type" .contentType
+  |>.insert "date" .date
+  |>.insert "expires" .expires
+  |>.insert "host" .host
+  |>.insert "if-match" .ifMatch
+  |>.insert "if-modified-since" .ifModifiedSince
+  |>.insert "if-none-match" .ifNoneMatch
+  |>.insert "if-range" .ifRange
+  |>.insert "if-unmodified-since" .ifUnmodifiedSince
+  |>.insert "proxy-authenticate" .proxyAuthenticate
+  |>.insert "proxy-authorization" .proxyAuthorization
+  |>.insert "set-cookie" .setCookie
+  |>.insert "transfer-encoding" .transferEncoding
+  |>.insert "www-authenticate" .wwwAuthenticate
+
 instance : Parseable HeaderName.Standard where
-  parse name := Lean.Data.Trie.empty
-    |>.insert "accept" .accept
-    |>.insert "accept-charset" .acceptCharset
-    |>.insert "accept-encoding" .acceptEncoding
-    |>.insert "accept-language" .acceptLanguage
-    |>.insert "age" .age
-    |>.insert "allow" .allow
-    |>.insert "authorization" .authorization
-    |>.insert "cache-control" .cacheControl
-    |>.insert "connection" .connection
-    |>.insert "content-encoding" .contentEncoding
-    |>.insert "content-length" .contentLength
-    |>.insert "content-location" .contentLocation
-    |>.insert "content-type" .contentType
-    |>.insert "date" .date
-    |>.insert "expires" .expires
-    |>.insert "host" .host
-    |>.insert "if-match" .ifMatch
-    |>.insert "if-modified-since" .ifModifiedSince
-    |>.insert "if-none-match" .ifNoneMatch
-    |>.insert "if-range" .ifRange
-    |>.insert "if-unmodified-since" .ifUnmodifiedSince
-    |>.insert "proxy-authenticate" .proxyAuthenticate
-    |>.insert "proxy-authorization" .proxyAuthorization
-    |>.insert "set-cookie" .setCookie
-    |>.insert "transfer-encoding" .transferEncoding
-    |>.insert "www-authenticate" .wwwAuthenticate
-    |>.find? name
+  parse name := standard.find? name
 
 instance : ToString HeaderName.Standard where
   toString
