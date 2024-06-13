@@ -41,8 +41,8 @@ def onConn (conn: Connection) : IO Unit := do
   conn.sendHeaders
 
   -- Write strings to the response
-  conn.write "eu queria jogar mine"
-  conn.write " mas eu to mt workaholic :sob:"
+  conn.write "some message"
+  conn.write " here!"
 
   -- Ends the request.
   conn.end
