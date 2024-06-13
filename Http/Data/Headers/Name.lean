@@ -67,34 +67,34 @@ private def standard : Lean.Data.Trie HeaderName.Standard :=
 instance : Parseable HeaderName.Standard where
   parse name := standard.find? name
 
-instance : ToString HeaderName.Standard where
-  toString
-    | .accept                  => "accept"
-    | .acceptCharset           => "accept-charset"
-    | .acceptEncoding          => "accept-encoding"
-    | .acceptLanguage          => "accept-language"
-    | .age                     => "age"
-    | .allow                   => "allow"
-    | .authorization           => "authorization"
-    | .cacheControl            => "cache-control"
-    | .connection              => "connection"
-    | .contentEncoding         => "content-encoding"
-    | .contentLength           => "content-length"
-    | .contentLocation         => "content-location"
-    | .contentType             => "content-type"
-    | .date                    => "date"
-    | .expires                 => "expires"
-    | .host                    => "host"
-    | .ifMatch                 => "if-match"
-    | .ifModifiedSince         => "if-modified-since"
-    | .ifNoneMatch             => "if-none-match"
-    | .ifRange                 => "if-range"
-    | .ifUnmodifiedSince       => "if-unmodified-since"
-    | .proxyAuthenticate       => "proxy-authenticate"
-    | .proxyAuthorization      => "proxy-authorization"
-    | .setCookie               => "set-cookie"
-    | .transferEncoding        => "transfer-encoding"
-    | .wwwAuthenticate         => "www-authenticate"
+instance : Canonical .text HeaderName.Standard where
+  repr
+    | .accept                  => "Accept"
+    | .acceptCharset           => "Accept-Charset"
+    | .acceptEncoding          => "Accept-Encoding"
+    | .acceptLanguage          => "Accept-Language"
+    | .age                     => "Age"
+    | .allow                   => "Allow"
+    | .authorization           => "Authorization"
+    | .cacheControl            => "Cache-Control"
+    | .connection              => "Connection"
+    | .contentEncoding         => "Content-Encoding"
+    | .contentLength           => "Content-Length"
+    | .contentLocation         => "Content-Location"
+    | .contentType             => "Content-Type"
+    | .date                    => "Date"
+    | .expires                 => "Expires"
+    | .host                    => "Host"
+    | .ifMatch                 => "If-Match"
+    | .ifModifiedSince         => "If-Modified-Since"
+    | .ifNoneMatch             => "If-None-Match"
+    | .ifRange                 => "If-Range"
+    | .ifUnmodifiedSince       => "If-Unmodified-Since"
+    | .proxyAuthenticate       => "Proxy-Authenticate"
+    | .proxyAuthorization      => "Proxy-Authorization"
+    | .setCookie               => "Set-Cookie"
+    | .transferEncoding        => "Transfer-Encoding"
+    | .wwwAuthenticate         => "Www-Authenticate"
 
 inductive HeaderName where
   | standard (val: HeaderName.Standard)
@@ -105,14 +105,14 @@ instance : Standard HeaderName HeaderName.Standard where
   custom := HeaderName.custom ∘ String.CI.new
   standard := HeaderName.standard
 
-instance : ToString HeaderName where
-  toString
-    | .standard std => toString std
+instance : Canonical .text HeaderName where
+  repr
+    | .standard std => Canonical.text std
     | .custom str => toString str
 
 instance : Canonical .text HeaderName where
   repr name :=
-    let lower := toString name
+    let lower := Canonical.text name
     let parts := lower.split (· == '-')
     let parts := parts.map String.capitalize
     String.intercalate "-" parts
