@@ -31,15 +31,21 @@ def handleError (conn: Connection) : ParsingError → IO Unit
   | .headerTooLong => simpleStatusResponse .requestHeaderFieldsTooLarge conn
   | .headersTooLong => simpleStatusResponse .requestHeaderFieldsTooLarge conn
 
-def onConnection (conn: IO.Ref Connection) (onConn: Connection → IO Unit) (request: Request) : IO Unit := do
+def onConnection (conn: IO.Ref Connection) (onConn: Connection → IO Bool) (request: Request) : IO Bool := do
   conn.modify (λx => {x with request})
   let conn ← conn.get
   onConn conn
 
+def closeConnectionTimeout (conn: IO.Ref Connection) : IO Unit := do
+  let connection ← conn.get
+  let isClosing ← connection.isClosing.get
+  if ¬isClosing then connection.close
+
 def readSocket
+  (loop: UV.Loop)
   (config: Config)
   (socket: UV.TCP)
-  (onConn: Connection → IO Unit)
+  (onConn: Connection → IO Bool)
   (onData: Connection → Chunk → IO Unit)
   (onTrailer: Connection → Trailers → IO Unit)
   : UV.IO Unit
@@ -57,15 +63,17 @@ def readSocket
       (readRef (onData ·))
       (readRef (onTrailer ·))
 
+    let timer ← loop.mkTimer
+
     let ref ← IO.toUVIO (IO.mkRef data)
+
     socket.read_start fun
-      | .eof => pure ()
-      | .error _ => do
-        socket.read_stop
-        socket.stop
+      | .eof => IO.toUVIO $ closeConnectionTimeout connRef
+      | .error _ => socket.read_stop *> socket.stop
       | .ok bytes => do
-        let data ← ref.get
-        let res ← IO.toUVIO $ Parser.feed config.messageConfig data bytes
+        timer.stop
+        timer.start (config.idleTimeout.toUInt64 * 1000) 0 $ IO.toUVIO (closeConnectionTimeout connRef)
+        let res ← IO.toUVIO $ Parser.feed config (← ref.get) bytes
         match res with
         | .ok res => ref.set res
         | .error err =>
@@ -75,7 +83,7 @@ def readSocket
 def server
   (config: Config)
   (host: String) (port: UInt16)
-  (onConn: Connection → IO Unit)
+  (onConn: Connection → IO Bool)
   (onData: Connection → Chunk → IO Unit)
   (onTrailer: Connection → Trailers → IO Unit)
   : IO Unit := do
@@ -87,6 +95,6 @@ def server
     server.listen 128 do
       let client ← loop.mkTCP
       server.accept client
-      readSocket config client onConn onData onTrailer
+      readSocket loop config client onConn onData onTrailer
     let _ ← loop.run
   UV.IO.run go

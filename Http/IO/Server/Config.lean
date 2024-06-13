@@ -1,36 +1,16 @@
 import Http.Data.Uri
+import Http.Config
 
 namespace Http.IO.Server
 open Http.Data
-
-/-! Http Server configuration. -/
-
-structure MessageConfig where
-
-  /-- Maximum size of request body, the server will reject if exceeds this limit -/
-  maxRequestBody: Option Nat
-
-  /-- Number of headers that a request or response can have -/
-  maxHeaders : Nat
-
-  /-- Maximum size of a header value and name -/
-  maxHeaderSize : Nat
-
-  /-- Maximum size of a URI -/
-  maxURISize : Nat
-
-instance : Inhabited MessageConfig where
-  default :=
-    { maxRequestBody := none
-    , maxHeaders := 20
-    , maxURISize := 8175
-    , maxHeaderSize := 8175
-    }
 
 /-- Structure to configure a HTTP web server -/
 structure Config where
   /-- Server name in the response headers -/
   name: Option String
+
+  /-- Host checking thing. It checks if the host header matches this. -/
+  host : Option String
 
   /-- Option to add Connection: Closed when it's shutting down -/
   closeOnShutdown: Bool
@@ -47,6 +27,7 @@ structure Config where
 instance : Inhabited Config where
   default :=
     { name := some "Http.lean"
+    , host := some "shampoo"
     , closeOnShutdown := true
     , tcpKeepAlive := true
     , idleTimeout := 1

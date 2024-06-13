@@ -1,14 +1,14 @@
 import Http.Protocols.Http1.Data
 import Http.Protocols.Http1.Grammar
-import Http.IO.Server.Config
 import Http.Data.Uri.Parser
 import Http.Data.Headers
+import Http.Config
 import Http.Data
 
 namespace Http.Protocols.Http1
 open Http.Protocols.Http1.Data
-open Http.IO.Server
 open Http.Data
+open Http
 
 /-! This module handles HTTP/1.1 protocol parsing and state management. It includes functions for
 handling URI, fields, and headers of an HTTP request.
@@ -26,18 +26,44 @@ structure State where
   uriSize : Nat
 
   contentLength : Option Nat
-  hasHost : Bool
+  host : Option String
   isChunked : Bool
   uri: Uri.Parser
 
   chunkHeaders : Headers
   trailer : Trailers
 
+inductive ParsingError where
+  | invalidMessage
+  | uriTooLong
+  | bodyTooLong
+  | headerTooLong
+  | headersTooLong
+
+def checkRequest (options: MessageConfig) (info: State) : IO (Except ParsingError Unit) := do
+  if let some size := options.maxRequestBody then
+    if info.bodySize > size then
+      return .error .bodyTooLong
+
+  if info.uriSize > options.maxURISize then
+    return .error .uriTooLong
+
+  if info.value.length > options.maxHeaderSize ∨
+    info.prop.length > options.maxHeaderSize then
+    return .error .headerTooLong
+
+  if info.chunkHeaders.size > options.maxHeaders ∨
+     info.req.headers.size > options.maxHeaders ∨
+     info.trailer.1.size > options.maxHeaders then
+    return .error .headersTooLong
+
+  return .ok ()
+
 abbrev Parser := Grammar.Data State
 
 /-- Creates an initial empty state for parsing with a given URI parser -/
 def State.empty : State :=
-  { hasHost := false
+  { host := none
   , uriSize := 0
   , chunkHeaders := Headers.empty
   , isChunked := false
@@ -69,10 +95,10 @@ private def endField (config: MessageConfig) (data: State) : IO (State × Nat) :
   let (data, code) :=
     match prop with
     | "host" =>
-      if data.hasHost then
+      if data.host.isSome then
         (data, false)
       else
-        let data := {data with hasHost := true }
+        let data := {data with host := some value }
         (data, (data.uri.info.authority.map (· != value)).getD true)
     | "transfer-encoding" =>
       let parts: Headers.Header .transferEncoding _ := inferInstance
@@ -121,34 +147,34 @@ private def onBody (fn: ByteArray → IO Unit) (body: ByteArray) (acc: State) : 
 /-- Processes the request line to set the HTTP method and version in the state -/
 private def onRequestLine (method: Nat) (major: Nat) (minor: Nat) (acc: State) : IO (State × Nat) := do
   let method := Option.get! $ Method.ofNat method
-  let version := Version.fromNumber major minor
-  match version with
+  match Version.fromNumber major minor with
   | none => return (acc, 1)
-  | some version => do
-    let acc := {acc with req := {acc.req with version, method}}
-    return (acc, 0)
+  | some version => return ({acc with req := {acc.req with version, method}}, 0)
 
 /-- Processes the response line to set the HTTP method and version in the state -/
 private def onResponseLine (statusCode: Nat) (major: Nat) (minor: Nat) (acc: State) : IO (State × Nat) := do
-  -- TODO: Handle error
   let status := Option.get! $ Status.fromCode statusCode.toUInt16
-  let version := Version.fromNumber major minor
-  match version with
+  match Version.fromNumber major minor with
   | none => return (acc, 1)
   | some version => do
     let acc := {acc with res := {acc.res with version, status}}
     return (acc, 0)
 
 /-- Finalizes the headers and sets the content length if present, checking for required conditions -/
-private def onEndHeaders {isRequest: Bool} (callback: (if isRequest then Request else Response) → IO Unit) (content: Nat) (acc: State) : IO (State × Nat) := do
+private def onEndHeaders {isRequest: Bool} (callback: (if isRequest then Request else Response) → IO Bool) (content: Nat) (acc: State) : IO (State × Nat) := do
   let code :=
     if acc.isChunked then 1
-    else if acc.hasHost then 0
+    else if acc.host.isSome then 0
     else 2
 
-  match isRequest with
-  | true => callback acc.req
-  | false => callback acc.res
+  let code ←
+    if code = 0 then
+      let result ←
+        match isRequest with
+        | true => callback acc.req
+        | false => callback acc.res
+      pure (if result then 0 else 2)
+    else pure code
 
   pure ({acc with contentLength := some content}, code)
 
@@ -166,7 +192,7 @@ private def onEndRequest (fn: Trailers → IO Unit) (acc: State) : IO (State × 
 def Parser.create
     (config: MessageConfig)
     (isRequest: Bool)
-    (endHeaders: (if isRequest then Request else Response) → IO Unit)
+    (endHeaders: (if isRequest then Request else Response) → IO Bool)
     (endBody: ByteArray → IO Unit)
     (endChunk: Chunk → IO Unit)
     (endTrailers: Trailers → IO Unit)
@@ -199,38 +225,14 @@ def Parser.create
       | some res => some $ res.append str
       | none => some str
 
-inductive ParsingError where
-  | invalidMessage
-  | uriTooLong
-  | bodyTooLong
-  | headerTooLong
-  | headersTooLong
-
 /-- Feeds data into the parser. This function takes a parser and a ByteArray, and processes the
 data to update the parser state incrementally. -/
 def Parser.feed (options: MessageConfig) (parser: Parser) (data: ByteArray) : IO (Except ParsingError Parser) := do
   let parser ← Grammar.parse parser data
 
-  if parser.error = 22 then
-    return .error .headerTooLong
+  if parser.error = 22 then return .error .headerTooLong
+  if parser.error ≠ 0 then return .error .invalidMessage
 
-  if parser.error ≠ 0 then
-    return .error .invalidMessage
+  let result ← checkRequest options parser.info
 
-  if let some size := options.maxRequestBody then
-    if parser.info.bodySize > size then
-      return .error .bodyTooLong
-
-  if parser.info.uriSize > options.maxURISize then
-    return .error .uriTooLong
-
-  if parser.info.value.length > options.maxHeaderSize ∨
-    parser.info.prop.length > options.maxHeaderSize then
-    return .error .headerTooLong
-
-  if parser.info.chunkHeaders.size > options.maxHeaders ∨
-     parser.info.req.headers.size > options.maxHeaders ∨
-     parser.info.trailer.1.size > options.maxHeaders then
-    return .error .headersTooLong
-
-  return .ok parser
+  return pure parser <* result

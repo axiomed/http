@@ -36,8 +36,8 @@ def Connection.close (connection: Connection) : IO Unit := connection.guard do
 
 def Connection.writeStr (connection: Connection) (data: String) : IO Unit := connection.guard do
   if connection.isChunked
-    then connection.buffer.modify (λx => x.push $ String.toUTF8 data)
-    else connection.buffer.modify (λx => x.push $ Canonical.binary (Chunk.fromString data))
+    then connection.buffer.modify (λx => x.push $ Canonical.binary (Chunk.fromString data))
+    else connection.buffer.modify (λx => x.push $ String.toUTF8 data)
 
 def Connection.rawWrite (connection: Connection) (buffer: Array ByteArray) : IO Unit := do
   UV.IO.run do let _ ← connection.socket.write buffer (λ_ => pure ())
