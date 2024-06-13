@@ -15,6 +15,7 @@ structure Request where
   uri     : Uri
   version : Version
   headers : Headers
+  deriving Repr, Inhabited
 
 namespace Request
 

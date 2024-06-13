@@ -67,7 +67,7 @@ def Headers := Lean.HashMap Headers.HeaderName String
 instance : Repr Headers where
   reprPrec h _ :=
     let headerStrings := h.toList.map fun (name, values) =>
-      s!"{String.quote (toString name)}: {String.quote values}"
+      s!"{String.quote (Canonical.text name)}: {String.quote values}"
     s!"\{{String.intercalate ", " headerStrings}}"
 
 instance : Canonical .text Headers where

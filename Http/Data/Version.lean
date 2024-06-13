@@ -15,6 +15,7 @@ inductive Version
   | v11
   | v20
   | v30
+  deriving Repr, Inhabited, BEq
 
 instance : Canonical .text Version where
   repr
