@@ -21,6 +21,39 @@ Add Http to your `lakefile.lean`:
 require Http from git "https://github.com/axiomed/Http.lean.git"
 ```
 
+Example:
+
+```lean
+import Http
+
+open Http.Data
+open Http
+
+def onConn (conn: Connection) : IO Unit := do
+  -- Using defined headers with the formats that are assigned to them.
+  conn.withHeaderStd .date (← Time.DateTime.now .GMT)
+  conn.withHeaderStd .contentType (Mime.mk (.standard .text) "plain" (.empty |>.insert "charset" "utf-8"))
+
+  -- Using a raw header that can be invalid for the client.
+  conn.withHeader "transfer-encoding" "chunked"
+
+  -- Send the headers so it can determine the content-type and stuff
+  conn.sendHeaders
+
+  -- Write strings to the response
+  conn.write "eu queria jogar mine"
+  conn.write " mas eu to mt workaholic :sob:"
+
+  -- Ends the request.
+  conn.end
+
+def main : IO Unit :=
+  Http.IO.Server.server
+    (host := "127.0.0.1")
+    (port := 8081)
+    (onEnd := λconn _ => onConn conn)
+```
+
 ## Acknowledgements
 
 This library is based on work @algebraic-sofia has done for her
