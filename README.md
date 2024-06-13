@@ -15,6 +15,8 @@ join the organization!
 
 ## Usage
 
+You need to have `libuv` and `pkg-config` installed.
+
 Add Http to your `lakefile.lean`:
 
 ```lean
