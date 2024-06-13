@@ -27,7 +27,7 @@ structure Config where
 instance : Inhabited Config where
   default :=
     { name := some "Http.lean"
-    , host := some "shampoo"
+    , host := none
     , closeOnShutdown := true
     , tcpKeepAlive := true
     , idleTimeout := 1
