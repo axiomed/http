@@ -13,50 +13,97 @@ open Http.Classes
 
 structure Connection where
   isClosing: IO.Ref Bool
-  isChunked: Bool
-  isHead: Bool
+  sentHeaders: IO.Ref Bool
+  isChunked: IO.Ref Bool
+  isHead: IO.Ref Bool
+  isKeepAlive: IO.Ref Bool
+
   request: Data.Request
   response: IO.Ref Data.Response
   buffer: IO.Ref (Array ByteArray)
   socket: UV.TCP
+  onEnd: Unit → IO Unit
 
-def Connection.new (socket: UV.TCP) : UV.IO Connection := do
+def Connection.new (socket: UV.TCP) (onEnd: Unit → IO Unit) : UV.IO Connection := do
   let isClosing ← IO.mkRef false
+  let sentHeaders ← IO.mkRef false
+  let isChunked ← IO.mkRef false
+  let isHead ← IO.mkRef false
+  let isKeepAlive ← IO.mkRef false
   let buffer ← IO.mkRef #[ByteArray.empty]
   let response ← IO.mkRef Data.Response.empty
-  return { isClosing, isHead := false, isChunked := false, request := Data.Request.empty, socket, buffer, response }
+  return { isClosing, isHead, isChunked, isKeepAlive, sentHeaders, request := Data.Request.empty, socket, buffer, response, onEnd }
 
 def Connection.guard (connection: Connection) (func: IO Unit) : IO Unit := do
   let isClosing ← connection.isClosing.get
   if ¬isClosing then func
 
 def Connection.close (connection: Connection) : IO Unit := connection.guard do
-  UV.IO.run connection.socket.stop
+  connection.onEnd ()
   connection.isClosing.set true
 
-def Connection.writeStr (connection: Connection) (data: String) : IO Unit := connection.guard do
-  if connection.isChunked
-    then connection.buffer.modify (λx => x.push $ Canonical.binary (Chunk.fromString data))
-    else connection.buffer.modify (λx => x.push $ String.toUTF8 data)
+def Connection.writeByteArray (connection: Connection) (data: ByteArray) : IO Unit := connection.guard do
+  let isChunked ← connection.isChunked.get
+  let data :=
+    if isChunked
+      then Canonical.binary (Chunk.mk Inhabited.default data)
+      else data
+  connection.buffer.modify (λx => x.push data)
+
+def Connection.write (connection: Connection) (data: String) : IO Unit := connection.guard do
+  connection.writeByteArray (String.toUTF8 data)
 
 def Connection.rawWrite (connection: Connection) (buffer: Array ByteArray) : IO Unit := do
   UV.IO.run do let _ ← connection.socket.write buffer (λ_ => pure ())
 
-def Connection.flushBody (connection: Connection) : IO Unit := connection.guard do
-  unless connection.isHead do
-    let buffer ← connection.buffer.swap #[]
-    connection.rawWrite buffer
+def Connection.sendLastChunk (connection: Connection) : IO Unit := connection.guard do
+  let isChunked ← connection.isChunked.get
+  if isChunked then
+    connection.rawWrite #[Canonical.binary Chunk.zeroed]
 
-def Connection.end (connection: Connection) (alive: Bool) : IO Unit := connection.guard do
-  let response ← connection.response.get
+def Connection.sendHeaders (connection: Connection) : IO Unit := connection.guard do
+  let sent ← connection.sentHeaders.get
 
-  connection.rawWrite #[String.toUTF8 $ Canonical.text response]
-  connection.flushBody
+  if ¬sent then
+    let response ← connection.response.get
+    connection.rawWrite #[String.toUTF8 $ Canonical.text response]
+    connection.sentHeaders.set true
 
-  if connection.isChunked then
-      connection.rawWrite #[Canonical.binary Chunk.zeroed]
+    if let some encoding := response.headers.find? .transferEncoding then
+      if encoding.find? Headers.TransferEncoding.isChunked |>.isSome then
+        connection.isChunked.set true
+
+
+def Connection.flush (connection: Connection) : IO Unit := connection.guard do
+  connection.sendHeaders
+  let buffer ← connection.buffer.swap #[]
+  connection.rawWrite buffer
+
+def Connection.end (connection: Connection) : IO Unit := connection.guard do
+  connection.flush
+  connection.sendLastChunk
 
   connection.response.set Data.Response.empty
 
-  if !alive then
+  let isKeepAlive ← connection.isKeepAlive.get
+
+  if ¬isKeepAlive then
     connection.close
+
+  connection.isClosing.set false
+  connection.sentHeaders.set false
+  connection.isChunked.set false
+  connection.isHead.set false
+  connection.isKeepAlive.set false
+
+def Connection.withHeader (connection: Connection) (name: String) (value: String) : IO Unit := connection.guard do
+  let sentHeaders ← connection.sentHeaders.get
+  if sentHeaders then
+    throw (IO.userError (toString "cannot write headers after they were sent"))
+  connection.response.modify (·.withHeader name value)
+
+def Connection.withHeaderStd (connection: Connection) [Canonical .text α] (name: Headers.HeaderName.Standard) (value: α) [Headers.Header name α] : IO Unit := connection.guard do
+  let sentHeaders ← connection.sentHeaders.get
+  if sentHeaders then
+    throw (IO.userError (toString "cannot write headers after they were sent"))
+  connection.response.modify (·.withHeaderStd name value)

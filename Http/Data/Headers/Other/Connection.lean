@@ -21,7 +21,7 @@ private def connectionStandard : Lean.Data.Trie ConnectionHeader.Standard :=
   |>.insert "upgrade" .upgrade
 
 instance : Parseable ConnectionHeader.Standard where
-  parse name := connectionStandard.find? name
+  parse name := connectionStandard.find? name.toLower
 
 instance : Canonical .text ConnectionHeader.Standard where
   repr

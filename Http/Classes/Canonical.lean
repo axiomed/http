@@ -18,6 +18,9 @@ instance : Canonical .text String where
 instance : Canonical .text String.CI where
   repr x := x.value.toLower
 
+instance [i: Canonical .text α] : Canonical .text (Array α) where
+  repr arr := String.intercalate ", " (arr.map i.repr).toList
+
 def text [inst: Canonical .text α] : α → String := inst.repr
 
 def binary [inst: Canonical .binary α] : α → ByteArray := inst.repr

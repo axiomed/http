@@ -5,7 +5,6 @@ import Http.Data.Status
 import Http.Data.Body
 import Http.Classes
 
-
 namespace Http.Data
 open Http.Classes
 
@@ -18,7 +17,7 @@ structure Response where
 
 namespace Response
 
-def withHeaderStd (res: Response) [Canonical .text α] (name: Headers.HeaderName) (value: α) : Response :=
+def withHeaderStd (res: Response) [Canonical .text α] (name: Headers.HeaderName.Standard) (value: α) [Headers.Header name α] : Response :=
   {res with headers := res.headers.addRaw name (Canonical.text value)}
 
 def withHeader (res: Response) (name: String) (value: String) : Response :=

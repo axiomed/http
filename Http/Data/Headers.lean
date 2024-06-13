@@ -87,7 +87,7 @@ def Headers.add [Canonical .text α] (headers: Headers) (name: HeaderName) (valu
   headers.addRaw name (Canonical.text value)
 
 /-- Get the first value of a header s-/
-def Headers.find? (headers: Headers) (name: HeaderName) [i: HeaderVal name α] : Option α := do
+def Headers.find? (headers: Headers) (name: HeaderName.Standard) [i: Header name α] : Option α := do
   let res ← HashMap.find? headers name
   i.parse res.trim
 
