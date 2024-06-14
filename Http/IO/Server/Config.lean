@@ -18,8 +18,11 @@ structure Config where
   /-- If it will use keep alive headers to multiple requests at the same connection-/
   tcpKeepAlive: Bool
 
-  /-- Time in seconds to close the connection after some request is sent -/
+  /-- Time in miliseconds to close the connection after some request is sent -/
   idleTimeout : Nat
+
+  /-- Maximum of keep alive connections -/
+  maxKeepAliveRequests : Option Nat
 
   /-- Configurations for parsing a message. -/
   messageConfig : MessageConfig
@@ -30,6 +33,7 @@ instance : Inhabited Config where
     , host := none
     , closeOnShutdown := true
     , tcpKeepAlive := true
-    , idleTimeout := 1
+    , idleTimeout := 1000
+    , maxKeepAliveRequests := some 1000
     , messageConfig := Inhabited.default
     }

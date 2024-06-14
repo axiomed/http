@@ -17,6 +17,7 @@ structure Connection where
   isChunked: IO.Ref Bool
   isHead: IO.Ref Bool
   isKeepAlive: IO.Ref Bool
+  requests: IO.Ref Nat
 
   request: Data.Request
   response: IO.Ref Data.Response
@@ -25,22 +26,25 @@ structure Connection where
   onEnd: Unit → IO Unit
 
 def Connection.new (socket: UV.TCP) (onEnd: Unit → IO Unit) : UV.IO Connection := do
-  let isClosing ← IO.mkRef false
-  let sentHeaders ← IO.mkRef false
-  let isChunked ← IO.mkRef false
-  let isHead ← IO.mkRef false
-  let isKeepAlive ← IO.mkRef false
-  let buffer ← IO.mkRef #[ByteArray.empty]
-  let response ← IO.mkRef Data.Response.empty
-  return { isClosing, isHead, isChunked, isKeepAlive, sentHeaders, request := Data.Request.empty, socket, buffer, response, onEnd }
+  return { isClosing := ← IO.mkRef false
+         , isHead := ← IO.mkRef false
+         , requests := ← IO.mkRef 0
+         , isChunked := ← IO.mkRef false
+         , isKeepAlive := ← IO.mkRef false
+         , sentHeaders := ← IO.mkRef false
+         , request := Data.Request.empty
+         , buffer := ← IO.mkRef #[ByteArray.empty]
+         , response := ← IO.mkRef Data.Response.empty
+         , socket
+         , onEnd }
 
 def Connection.guard (connection: Connection) (func: IO Unit) : IO Unit := do
   let isClosing ← connection.isClosing.get
   if ¬isClosing then func
 
 def Connection.close (connection: Connection) : IO Unit := connection.guard do
-  connection.onEnd ()
   connection.isClosing.set true
+  connection.onEnd ()
 
 def Connection.writeByteArray (connection: Connection) (data: ByteArray) : IO Unit := connection.guard do
   let isChunked ← connection.isChunked.get
@@ -53,8 +57,9 @@ def Connection.writeByteArray (connection: Connection) (data: ByteArray) : IO Un
 def Connection.write (connection: Connection) (data: String) : IO Unit := connection.guard do
   connection.writeByteArray (String.toUTF8 data)
 
-def Connection.rawWrite (connection: Connection) (buffer: Array ByteArray) : IO Unit := do
-  UV.IO.run do let _ ← connection.socket.write buffer (λ_ => pure ())
+def Connection.rawWrite (connection: Connection) (buffer: Array ByteArray) : IO Unit := connection.guard do
+  if buffer.size > 0 then
+    UV.IO.run do let _ ← connection.socket.write buffer (λ_ => pure ())
 
 def Connection.sendLastChunk (connection: Connection) : IO Unit := connection.guard do
   let isChunked ← connection.isChunked.get
@@ -90,7 +95,6 @@ def Connection.end (connection: Connection) : IO Unit := connection.guard do
   if ¬isKeepAlive then
     connection.close
 
-  connection.isClosing.set false
   connection.sentHeaders.set false
   connection.isChunked.set false
   connection.isHead.set false

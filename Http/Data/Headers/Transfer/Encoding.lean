@@ -51,6 +51,9 @@ structure TransferEncoding where
 def TransferEncoding.isChunked (te: TransferEncoding) : Bool :=
   te.type == .chunked
 
+def TransferEncoding.chunked : TransferEncoding :=
+  TransferEncoding.mk .chunked .empty
+
 instance : Canonical .text TransferEncoding where
   repr te :=
     let paramsStr := te.params.map (fun (k, v) => s!"{k}={v}")

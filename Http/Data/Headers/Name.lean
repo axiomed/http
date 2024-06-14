@@ -33,6 +33,8 @@ inductive HeaderName.Standard where
   | setCookie
   | transferEncoding
   | wwwAuthenticate
+  | upgrade
+  | keepAlive
   deriving Inhabited, BEq, Repr, Hashable
 
 private def standard : Lean.Data.Trie HeaderName.Standard :=
@@ -63,6 +65,8 @@ private def standard : Lean.Data.Trie HeaderName.Standard :=
   |>.insert "set-cookie" .setCookie
   |>.insert "transfer-encoding" .transferEncoding
   |>.insert "www-authenticate" .wwwAuthenticate
+  |>.insert "upgrade" .upgrade
+  |>.insert "keep-alive" .keepAlive
 
 instance : Parseable HeaderName.Standard where
   parse name := standard.find? name
@@ -95,6 +99,8 @@ instance : Canonical .text HeaderName.Standard where
     | .setCookie               => "Set-Cookie"
     | .transferEncoding        => "Transfer-Encoding"
     | .wwwAuthenticate         => "Www-Authenticate"
+    | .upgrade                 => "Upgrade"
+    | .keepAlive               => "Keep-Alive"
 
 inductive HeaderName where
   | standard (val: HeaderName.Standard)
@@ -111,11 +117,14 @@ instance : Canonical .text HeaderName where
     | .custom str => toString str
 
 instance : Canonical .text HeaderName where
-  repr name :=
-    let lower := Canonical.text name
-    let parts := lower.split (· == '-')
-    let parts := parts.map String.capitalize
-    String.intercalate "-" parts
+  repr
+    | .standard std =>
+      Canonical.text std
+    | .custom str =>
+      let lower := Canonical.text str
+      let parts := lower.split (· == '-')
+      let parts := parts.map String.capitalize
+      String.intercalate "-" parts
 
 class Header (name: HeaderName.Standard) (α: outParam Type) where
   parse : String → Option α

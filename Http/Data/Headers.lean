@@ -29,11 +29,12 @@ import Http.Data.Headers.Other.Date
 import Http.Data.Headers.Other.Host
 import Http.Data.Headers.Other.SetCookie
 import Http.Data.Headers.Other.Connection
+import Http.Data.Headers.Other.Upgrade
+import Http.Data.Headers.Other.KeepAlive
 
 import Http.Classes
 import Http.Data.Headers.Name
 import CaseInsensitive
-import DHashMap
 import Lean
 
 namespace Http.Data

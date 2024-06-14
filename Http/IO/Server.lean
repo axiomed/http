@@ -8,9 +8,6 @@ import Http.Classes
 import LibUV
 
 namespace Http.IO.Server
-
-/-! Definition of the common connection for HTTP protocols. -/
-
 open Http.Protocols.Http1.Data
 open Http.Protocols.Http1
 open Http.Classes
@@ -31,26 +28,35 @@ def handleError (conn: Connection) : ParsingError → IO Unit
   | .headerTooLong => simpleStatusResponse .requestHeaderFieldsTooLarge conn
   | .headersTooLong => simpleStatusResponse .requestHeaderFieldsTooLarge conn
 
-def onRequest (config: Config) (conn: IO.Ref Connection) (onReq: Connection → IO Unit) (request: Request) : IO Bool := do
+def keepAlive (config: Config) : Headers.KeepAlive :=
+  Headers.KeepAlive.new (some $ config.idleTimeout / 1000) config.maxKeepAliveRequests
+
+def onRequest (config: Config) (connRef: IO.Ref Connection) (onReq: Connection → IO Unit) (request: Request) : IO Bool := do
+  let conn ← connRef.get
+  conn.requests.modify (· + 1)
+
   if let some (host, valid) := (·, ·) <$> request.headers.findRaw? "host" <*> config.host then
     if host ≠ valid then
-      let conn ← conn.get
-      handleError conn .invalidMessage
+      return false
+
+  if let some max := config.maxKeepAliveRequests then
+    let counter ← conn.requests.get
+    if counter > max then
       return false
 
   if let some (.standard res) := request.headers.find? Headers.HeaderName.Standard.connection then
-    let connRef ← conn.get
     match res with
     | .keepAlive => do
-      connRef.isKeepAlive.set true
-      connRef.withHeader "connection" "keep-alive"
+      conn.isKeepAlive.set true
+      conn.withHeader "connection" "keep-alive"
+      conn.withHeaderStd .keepAlive (keepAlive config)
     | .close => do
-      connRef.isKeepAlive.set false
-      connRef.withHeader "connection" "close"
+      conn.isKeepAlive.set false
+      conn.withHeader "connection" "close"
     | .upgrade => pure ()
 
-  conn.modify (λx => {x with request})
-  let conn ← conn.get
+  connRef.modify (λx => {x with request})
+  let conn ← connRef.get
 
   onReq conn
 
@@ -93,12 +99,18 @@ def readSocket
 
     let ref ← IO.toUVIO (IO.mkRef data)
 
-    timer.start (config.idleTimeout.toUInt64 * 1000) 0 $ IO.toUVIO (closeConnectionTimeout connRef)
+    let timerCount := do
+      timer.start config.idleTimeout.toUInt64 0 $ do
+        IO.toUVIO (closeConnectionTimeout connRef)
+
+    timerCount
 
     socket.read_start fun
       | .eof => pure ()
       | .error _ => onEnd ()
       | .ok bytes => do
+        timer.stop
+        timerCount
         let res ← IO.toUVIO $ Parser.feed config.messageConfig (← ref.get) bytes
         match res with
         | .ok res => ref.set res
