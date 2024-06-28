@@ -107,6 +107,11 @@ inductive HeaderName where
   | custom (value: String.CI)
   deriving Inhabited, BEq, Repr, Hashable
 
+def canonicalHeaderName (s: String) : String :=
+  s.split (· == '-')
+  |>.map String.capitalize
+  |> String.intercalate "-"
+
 instance : Standard HeaderName HeaderName.Standard where
   custom := HeaderName.custom ∘ String.CI.new
   standard := HeaderName.standard
@@ -118,25 +123,11 @@ instance : Canonical .text HeaderName where
 
 instance : Canonical .text HeaderName where
   repr
-    | .standard std =>
-      Canonical.text std
-    | .custom str =>
-      let lower := Canonical.text str
-      let parts := lower.split (· == '-')
-      let parts := parts.map String.capitalize
-      String.intercalate "-" parts
+    | .standard std => Canonical.text std
+    | .custom str => Canonical.text (canonicalHeaderName str.value)
 
 class Header (name: HeaderName.Standard) (α: outParam Type) where
   parse : String → Option α
-
-class HeaderVal (name: HeaderName) (α: outParam Type) where
-  parse : String → Option α
-
-instance : HeaderVal (.custom v) String where
-  parse x := some x
-
-instance [i : Header r α] : HeaderVal (.standard r) α where
-  parse := i.parse
 
 instance : Coe String HeaderName where
   coe str :=

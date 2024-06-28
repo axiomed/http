@@ -11,9 +11,10 @@ open Http.Classes
 /-! HTTP [Response] with a bunch of parts like version and status and a body with the α type
 that can be anything that can be transformed into a byte sequence -/
 structure Response where
-  status       : Status
-  version      : Version
-  headers      : Headers
+  status : Status
+  version : Version
+  headers : Headers
+  deriving Repr
 
 namespace Response
 

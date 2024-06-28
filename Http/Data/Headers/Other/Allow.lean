@@ -8,5 +8,6 @@ instance : Header .allow (Array Method) where
   parse input
     := input
     |>.split (· = ',')
+    |>.map String.trim
     |>.toArray
     |>.sequenceMap Parseable.parse

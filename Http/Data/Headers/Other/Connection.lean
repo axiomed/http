@@ -14,6 +14,12 @@ inductive ConnectionHeader where
   | custom (value: String)
   deriving Inhabited, BEq, Repr, Hashable
 
+def ConnectionHeader.keepAlive : ConnectionHeader :=
+  ConnectionHeader.standard .keepAlive
+
+def ConnectionHeader.close : ConnectionHeader :=
+  ConnectionHeader.standard .close
+
 private def connectionStandard : Lean.Data.Trie ConnectionHeader.Standard :=
   Lean.Data.Trie.empty
   |>.insert "close" .close

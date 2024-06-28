@@ -2,6 +2,7 @@ import Http.Data.Uri.Authority
 import Http.Data.Uri.Scheme
 import Http.Data.Uri.Query
 import Http.Util.Format
+import Http.Util
 import Http.Classes
 
 namespace Http.Data
@@ -14,10 +15,10 @@ open Lean
 * Reference: https://www.rfc-editor.org/rfc/rfc3986.html#section-3.2.2
 -/
 structure Uri where
-  authority : Uri.Authority
-  path      : Option String
-  query     : Option String
-  fragment  : Option String
+  authority : Uri.Authority := {}
+  path      : Option String := none
+  query     : Option String := none
+  fragment  : Option String := none
   deriving BEq, Repr, Inhabited
 
 def Uri.encode (input: String) : String :=
@@ -62,16 +63,16 @@ def Uri.componentDecode (input: String) : Option String := Id.run do
     else
       return none
 
-  String.fromUTF8? result
+  return String.fromAscii result
 
 instance : Canonical .text Uri where
   repr u :=
     let authority := Canonical.text u.authority
-    let path := Option.getD (u.path.map ("/" ++ ·)) ""
-    let query := Option.getD (u.query.map toString) ""
-    let fragment := Option.getD (u.fragment.map (fun s => "#" ++ toString s)) ""
+    let path := Option.getD u.path ""
+    let query := Option.getD u.query ""
+    let fragment := Option.getD (u.fragment.map (fun s => "#" ++ s)) ""
     let notEncoded := String.join [authority, path, query, fragment]
-    Uri.encode notEncoded
+    notEncoded
 
 namespace Uri
 

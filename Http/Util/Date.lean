@@ -1,4 +1,4 @@
-import Time
+import Time.Format
 
 namespace Http.Util.Date
 

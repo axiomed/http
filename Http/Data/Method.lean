@@ -17,7 +17,7 @@ inductive Method where
   | options
   | trace
   | patch
-  deriving Repr, Inhabited
+  deriving Repr, Inhabited, BEq
 
 namespace Method
 

@@ -118,12 +118,22 @@ parser Grammar in Lean where
       any reasonPhrase
 
     node lineAlmostDone where
-      is "\r\n" requestLine
+      is "\r\n" endLine
+
+    node endLine where
+      select (read type)
+        | 0 => responseLine
+        default => requestLine
+
+    node responseLine where
+      select endResponseLine
+        | 0 => fieldLineStart
+        default => error 10
 
     node requestLine where
       select endRequestLine
         | 0 => fieldLineStart
-        default => error 1
+        default => error 20
 
     node fieldLineStart where
       peek '\r' endHeaders
@@ -132,23 +142,27 @@ parser Grammar in Lean where
     node fieldLineProp where
       peek ':' (end prop (call (callStore endProp isCL) fieldLineColon))
       any fieldLineProp
+      otherwise (error 1)
 
     node fieldLineColon where
       is ":" fieldLineOWS
+      otherwise (error 2)
 
     node fieldLineOWS where
       is " " fieldLineOWS
       otherwise (start value fieldLineValuePre)
+      otherwise (error 3)
 
     node fieldLineValuePre where
       select (read isCL)
         | 0 => fieldLineValue
         | 1 => contentLength
-        default => error 0
+        default => error 10
 
     node contentLength where
       peek '\r' (end value selectLineEnd)
       is digit (call (mulAdd decimal contentLength) contentLength)
+      otherwise (error 5)
 
     node fieldLineValue where
       peek '\r' (end value selectLineEnd)
@@ -158,7 +172,8 @@ parser Grammar in Lean where
       select endHeaders
         | 0 => endMessage
         | 1 => startChunker
-        default => error 1
+        | 2 => unlimitedBodyStart
+        default => error 2
 
     node selectLineEnd where
       select endField
@@ -174,14 +189,22 @@ parser Grammar in Lean where
     node bodyInfo where
       consume contentLength (end body theEnd)
 
+    node unlimitedBodyStart where
+      is "\r\n" (start body unlimitedBody)
+
+    node unlimitedBody where
+      any unlimitedBody
+
     node startChunker where
       is "\r\n" (call (store chunkLength 0) chunkSize)
+      otherwise (error 120)
 
     node chunk where
       otherwise (call (store chunkLength 0) chunkSize)
 
     node chunkSize where
       is digit (call (mulAdd hex chunkLength) chunkParseLength)
+      otherwise (error 121)
 
     node chunkParseLength where
       is digit (call (mulAdd hex chunkLength) chunkParseLength)
@@ -215,9 +238,11 @@ parser Grammar in Lean where
 
     node chunkData where
       is "\r\n" (start chunkData chunkDataInfo)
+      otherwise (error 123)
 
     node chunkDataInfo where
       consume chunkLength (end chunkData chunkDataEnd)
+      otherwise (error 124)
 
     node chunkDataEnd where
       select (read chunkLength)
@@ -226,6 +251,7 @@ parser Grammar in Lean where
 
     node chunkDataSelect where
       is "\r\n" chunk
+      otherwise (error 125)
 
     node trailer where
       is "\r\n" theEnd

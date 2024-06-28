@@ -25,20 +25,24 @@ structure State where
   bodySize : Nat
   uriSize : Nat
 
+  hasContentLength : Bool
   contentLength : Option Nat
   host : Option String
   isChunked : Bool
   uri: Uri.Parser
 
+  headers: Headers
+
   chunkHeaders : Headers
   trailer : Trailers
 
 inductive ParsingError where
-  | invalidMessage
+  | invalidMessage (s: Nat)
   | uriTooLong
   | bodyTooLong
   | headerTooLong
   | headersTooLong
+  deriving Repr
 
 def checkRequest (options: MessageConfig) (info: State) : IO (Except ParsingError Unit) := do
   if let some size := options.maxRequestBody then
@@ -64,6 +68,7 @@ abbrev Parser := Grammar.Data State
 /-- Creates an initial empty state for parsing with a given URI parser -/
 def State.empty : State :=
   { host := none
+  , hasContentLength := false
   , uriSize := 0
   , chunkHeaders := Headers.empty
   , isChunked := false
@@ -74,6 +79,7 @@ def State.empty : State :=
   , prop := Inhabited.default
   , value := Inhabited.default
   , trailer := Inhabited.default
+  , headers := Inhabited.default
   , uri := Uri.Parser.create }
 
 /-- Processes a URI fragment and updates the URI in the state -/
@@ -112,8 +118,9 @@ private def endField (config: MessageConfig) (data: State) : IO (State × Nat) :
   if value.length > config.maxHeaderSize ∨ prop.length > config.maxHeaderSize then
     return (data, 1)
 
-  let headers := data.req.headers.addRaw prop value
-  pure ({ data with req := { data.req with headers }, prop := "", value := ""}, if code then 0 else 1)
+  let headers := data.headers.addRaw prop value
+
+  pure ({ data with headers, prop := "", value := ""}, if code then 0 else 1)
 
 private def onEndFieldExt (config: MessageConfig) (data: State) : IO (State × Nat) := do
   let prop := data.prop.toLower
@@ -137,7 +144,14 @@ private def onEndFieldTrailer (config: MessageConfig) (data: State) : IO (State 
 
 /-- Checks if the property being processed is "content-length" -/
 private def endProp (data: State) : IO (State × Nat) := do
-  pure (data, if data.prop.toLower == "content-length" then 1 else 0)
+  let hasLength := data.prop.toLower == "content-length"
+
+  let data :=
+    if hasLength
+      then { data with hasContentLength := true }
+      else data
+
+  pure (data, if hasLength then 1 else 0)
 
 /-- Handles the body of the HTTP request and updates the request with the body content -/
 private def onBody (fn: ByteArray → IO Unit) (body: ByteArray) (acc: State) : IO (State × Nat) := do
@@ -164,17 +178,19 @@ private def onResponseLine (statusCode: Nat) (major: Nat) (minor: Nat) (acc: Sta
 private def onEndHeaders {isRequest: Bool} (callback: (if isRequest then Request else Response) → IO Bool) (content: Nat) (acc: State) : IO (State × Nat) := do
   let code :=
     if acc.isChunked then 1
-    else if acc.host.isSome then 0
-    else 2
+      else if acc.hasContentLength || (isRequest ∧ acc.req.method == .get) then 0
+      else 2
 
-  let code ←
-    if code = 0 then
-      let result ←
-        match isRequest with
-        | true => callback acc.req
-        | false => callback acc.res
-      pure (if result then 0 else 2)
-    else pure code
+  let code ← do
+    let result ←
+      match isRequest with
+      | true => do
+        let req := {acc.req with headers := acc.headers }
+        callback req
+      | false => do
+        let res := {acc.res with headers := acc.headers }
+        callback res
+    pure (if result then code else 3)
 
   pure ({acc with contentLength := some content}, code)
 
@@ -219,7 +235,7 @@ def Parser.create
       { data with type := if isRequest then 1 else 0 }
   where
     toByteArray func st en bt data := func (bt.extract st en) data
-    toString func st en bt data := func (String.fromUTF8! $ bt.extract st en) data
+    toString func st en bt data := func (String.fromAscii $ bt.extract st en) data
     appendOr (data: Option String) (str: String) : Option String :=
       match data with
       | some res => some $ res.append str
@@ -231,7 +247,7 @@ def Parser.feed (options: MessageConfig) (parser: Parser) (data: ByteArray) : IO
   let parser ← Grammar.parse parser data
 
   if parser.error = 22 then return .error .headerTooLong
-  if parser.error ≠ 0 then return .error .invalidMessage
+  if parser.error ≠ 0 then return .error (.invalidMessage parser.error)
 
   let result ← checkRequest options parser.info
 

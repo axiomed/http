@@ -3,6 +3,7 @@ import Lean.Data.Parsec
 namespace Http.Util.Parser
 open Lean.Parsec
 
+-- I'm not sure if its faster than a bunch of comparisons. It is in C, in Lean i'm not so sure.
 def tokenMap : Array Nat := #[
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,

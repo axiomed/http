@@ -6,7 +6,7 @@ open Http
 
 def onRequest (conn: Connection) : IO Unit := do
   conn.withHeaderStd .date        (← Time.DateTime.now .GMT)
-  conn.withHeaderStd .contentType (Mime.mk (.standard .text) "plain" (.empty |>.insert "charset" "utf-8"))
+  conn.withHeaderStd .contentType (Mime.mk (.standard .text) (String.CI.new "plain") (.empty |>.insert (String.CI.new "charset") "utf-8"))
   conn.withHeaderStd .transferEncoding #[TransferEncoding.chunked]
 
   conn.sendHeaders

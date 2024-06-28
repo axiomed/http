@@ -13,9 +13,9 @@ on the network.
 * Reference: https://www.rfc-editor.org/rfc/rfc3986.html#section-3.1
 -/
 structure Authority where
-  userInfo: Option String
-  host: Option String
-  port: Option Port
+  userInfo: Option String := none
+  host: Option String := none
+  port: Option Port := none
   deriving BEq, Repr, Inhabited
 
 instance : Canonical .text Authority where

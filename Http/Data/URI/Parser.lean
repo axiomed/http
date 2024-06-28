@@ -18,7 +18,7 @@ structure Uri.State where
 abbrev Parser := Grammar.Data Uri.State
 
 private def setField (func: String → Uri.State → Uri.State) : Nat → Nat → ByteArray → Uri.State → IO (Uri.State × Nat) :=
-  fun st en bs acc => pure (func (String.fromUTF8! $ bs.extract st en) acc, 0)
+  fun st en bs acc => pure (func (String.fromAscii $ bs.extract st en) acc, 0)
 
 /-- Creates a new parser structure. This parser uses various field-setting functions to update the
 URI components. -/
