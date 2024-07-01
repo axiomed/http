@@ -19,6 +19,9 @@ def Query.empty : Query :=
 def Query.isEmpty (query : Query) : Bool :=
   query == Query.empty
 
+def Query.find? (query: Query) (key: String) : Option String :=
+  Prod.snd =<< query.pairs.find? (λx => x.1 == key)
+
 instance : Canonical .text Query where
   repr q :=
     let flat : (String × Option String) → String
