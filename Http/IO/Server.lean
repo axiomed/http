@@ -2,7 +2,7 @@ import Http.Protocols.Http1.Parser
 import Http.Protocols.Http1.Data
 import Http.IO.Server.Config
 import Http.IO.Server.Connection
-import Http.Data.Uri.Parser
+import Http.Data.URI.Parser
 import Http.Data
 import Http.Util
 import Http.Classes

@@ -1,6 +1,6 @@
 import Http.Protocols.Http1.Data
 import Http.Protocols.Http1.Grammar
-import Http.Data.Uri.Parser
+import Http.Data.URI.Parser
 import Http.Data.Headers
 import Http.Config
 import Http.Data
@@ -29,7 +29,7 @@ structure State where
   contentLength : Option Nat
   host : Option String
   isChunked : Bool
-  uri: Uri.Parser
+  uri: URI.Parser
 
   headers: Headers
 
@@ -80,17 +80,17 @@ def State.empty : State :=
   , value := Inhabited.default
   , trailer := Inhabited.default
   , headers := Inhabited.default
-  , uri := Uri.Parser.create }
+  , uri := URI.Parser.create }
 
 /-- Processes a URI fragment and updates the URI in the state -/
 private def onUri (str: ByteArray) (data: State) : IO (State × Nat) := do
-  let uri ← Uri.Parser.feed data.uri str
+  let uri ← URI.Parser.feed data.uri str
   pure ({ data with uri, uriSize := data.uriSize + str.size }, 0)
 
 /-- Finalizes the URI parsing and updates the request's URI field -/
 private def endUri (data: State) : IO (State × Nat) := do
   match data.uri.data with
-  | .ok uri => pure ({ data with uri := Uri.Parser.create, req := {data.req with uri}}, 0)
+  | .ok uri => pure ({ data with uri := URI.Parser.create, req := {data.req with uri}}, 0)
   | .error _ => pure (data, 1)
 
 /-- Processes and finalizes a field (header) in the HTTP request -/

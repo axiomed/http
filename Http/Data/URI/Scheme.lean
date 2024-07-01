@@ -1,7 +1,7 @@
 import CaseInsensitive
 import Http.Classes
 
-namespace Http.Data.Uri
+namespace Http.Data.URI
 open Http.Classes
 
 /-- The standard schemes described in the HTTP core semantics. -/

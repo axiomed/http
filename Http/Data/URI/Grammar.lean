@@ -1,7 +1,7 @@
 import Parse
 import Parse.DSL
 
-namespace Http.Data.Uri
+namespace Http.Data.URI
 
 /-! This code defines an incremental parser for parsing different components of a URI. -/
 

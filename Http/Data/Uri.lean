@@ -1,6 +1,6 @@
-import Http.Data.Uri.Authority
-import Http.Data.Uri.Scheme
-import Http.Data.Uri.Query
+import Http.Data.URI.Authority
+import Http.Data.URI.Scheme
+import Http.Data.URI.Query
 import Http.Util.Format
 import Http.Util
 import Http.Classes
@@ -14,14 +14,14 @@ open Lean
 
 * Reference: https://www.rfc-editor.org/rfc/rfc3986.html#section-3.2.2
 -/
-structure Uri where
-  authority : Uri.Authority := {}
+structure URI where
+  authority : URI.Authority := {}
   path      : Option String := none
   query     : Option String := none
   fragment  : Option String := none
   deriving BEq, Repr, Inhabited
 
-def Uri.encode (input: String) : String :=
+def URI.encode (input: String) : String :=
     input.toUTF8.foldl (λs c => s ++ encodeChar c) ""
   where
     encodeChar char :=
@@ -29,7 +29,7 @@ def Uri.encode (input: String) : String :=
         then (Char.ofNat (UInt8.toNat char)).toString
         else s!"%{(toHex char.toNat).toUpper}"
 
-def Uri.componentDecode (input: String) : Option String := Id.run do
+def URI.componentDecode (input: String) : Option String := Id.run do
   let mut result := ByteArray.empty
   let mut acc := 0
   let mut start := none
@@ -65,7 +65,7 @@ def Uri.componentDecode (input: String) : Option String := Id.run do
 
   return String.fromAscii result
 
-instance : Canonical .text Uri where
+instance : Canonical .text URI where
   repr u :=
     let authority := Canonical.text u.authority
     let path := Option.getD u.path ""
@@ -74,6 +74,6 @@ instance : Canonical .text Uri where
     let notEncoded := String.join [authority, path, query, fragment]
     notEncoded
 
-namespace Uri
+namespace URI
 
-def empty : Uri := Uri.mk Inhabited.default none none none
+def empty : URI := URI.mk Inhabited.default none none none

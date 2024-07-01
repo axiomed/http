@@ -1,4 +1,4 @@
-import Http.Data.Uri
+import Http.Data.URI
 import Http.Config
 
 namespace Http.IO.Server

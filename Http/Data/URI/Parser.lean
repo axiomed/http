@@ -1,9 +1,9 @@
-import Http.Data.Uri.Grammar
-import Http.Data.Uri
+import Http.Data.URI.Grammar
+import Http.Data.URI
 
-namespace Http.Data.Uri
+namespace Http.Data.URI
 
-structure Uri.State where
+structure URI.State where
   authority : Option String
   path      : Option String
   query     : Option String
@@ -15,9 +15,9 @@ structure Uri.State where
 /-! Defines an incremental parser handler using the `Grammar` module. This parser is designed to handle
     URI components incrementally.
 -/
-abbrev Parser := Grammar.Data Uri.State
+abbrev Parser := Grammar.Data URI.State
 
-private def setField (func: String → Uri.State → Uri.State) : Nat → Nat → ByteArray → Uri.State → IO (Uri.State × Nat) :=
+private def setField (func: String → URI.State → URI.State) : Nat → Nat → ByteArray → URI.State → IO (URI.State × Nat) :=
   fun st en bs acc => pure (func (String.fromAscii $ bs.extract st en) acc, 0)
 
 /-- Creates a new parser structure. This parser uses various field-setting functions to update the
@@ -44,7 +44,7 @@ def Parser.feed (parser: Parser) (data: ByteArray) : IO Parser :=
 
 /-- Retrieves the parsed URI data from the parser. This function extracts the accumulated URI
 information from the parser. -/
-def Parser.data (parser: Parser) : Except Nat Uri :=
+def Parser.data (parser: Parser) : Except Nat URI :=
   if parser.error ≠ 0 then
     .error parser.error
   else
@@ -57,4 +57,4 @@ def Parser.data (parser: Parser) : Except Nat Uri :=
       | [] => (none, none)
       | _ => panic "impossible uri"
     let authority := Authority.mk userinfo host port
-    .ok (Uri.mk authority state.path state.query state.fragment)
+    .ok (URI.mk authority state.path state.query state.fragment)

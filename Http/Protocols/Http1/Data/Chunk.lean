@@ -8,9 +8,6 @@ open Http.Util.Format
 open Http.Classes
 open Http.Data
 
-instance : Repr ByteArray where
-  reprPrec s r := reprPrec (String.fromAscii s) r
-
 /-! HTTP [Chunk] structure that represents a single chunk of data in HTTP/1.1 -/
 
 /-- The 'Chunk' structure represents a single chunk of data in an HTTP/1.1 chunked transfer encoding
@@ -18,7 +15,6 @@ It includes optional extensions and the actual data. -/
 structure Chunk where
   extensions: Headers
   data: ByteArray
-  deriving Repr
 
 instance : Canonical .binary Chunk where
   repr chunk :=

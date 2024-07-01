@@ -248,7 +248,7 @@ instance : Canonical .text Status where
     | .lengthRequired => "Length Required"
     | .preconditionFailed => "Precondition Failed"
     | .payloadTooLarge => "Request Entity Too Large"
-    | .uriTooLong => "Request Uri Too Long"
+    | .uriTooLong => "Request URI Too Long"
     | .unsupportedMediaType => "Unsupported Media Type"
     | .rangeNotSatisfiable => "Requested Range Not Satisfiable"
     | .expectationFailed => "Expectation Failed"

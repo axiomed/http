@@ -1,6 +1,6 @@
 import Http.Protocols.Http1.Parser
 import Http.Protocols.Http1.Data
-import Http.Data.Uri.Parser
+import Http.Data.URI.Parser
 import Http.Classes
 import Http.Data
 import LibUV

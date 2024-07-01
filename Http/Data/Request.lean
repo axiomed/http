@@ -2,7 +2,7 @@ import Http.Data.Headers
 import Http.Data.Version
 import Http.Data.Method
 import Http.Data.Body
-import Http.Data.Uri
+import Http.Data.URI
 import Http.Classes
 
 namespace Http.Data
@@ -12,7 +12,7 @@ open Http.Classes
 headers and a [Incoming] body, that can be a stream. -/
 structure Request where
   method  : Method
-  uri     : Uri
+  uri     : URI
   version : Version
   headers : Headers
   deriving Repr, Inhabited
@@ -20,7 +20,7 @@ structure Request where
 namespace Request
 
 def empty : Request :=
-  Request.mk Method.get Uri.empty Version.v10 Inhabited.default
+  Request.mk Method.get URI.empty Version.v10 Inhabited.default
 
 instance : Canonical .text Request where
   repr r :=
