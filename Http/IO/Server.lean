@@ -15,13 +15,13 @@ open Http.Data.Headers
 open Http.Classes
 open Http.Data
 
-def simpleStatusResponse (status: Status) (conn: Connection) := do
+def simpleStatusResponse (status: Status) (conn: Connection α) := do
   conn.response.modify λres => res
     |>.withHeaderStd .connection ConnectionHeader.close
     |>.withStatus status
   conn.end
 
-def handleError (conn: Connection) : ParsingError → IO Unit
+def handleError (conn: Connection α) : ParsingError → IO Unit
   | .invalidMessage _ => simpleStatusResponse .badRequest conn
   | .uriTooLong => simpleStatusResponse .uriTooLong conn
   | .bodyTooLong => simpleStatusResponse .payloadTooLarge conn
@@ -31,7 +31,7 @@ def handleError (conn: Connection) : ParsingError → IO Unit
 def keepAlive (config: Config) : KeepAlive :=
   KeepAlive.new (some $ config.idleTimeout / 1000) config.maxKeepAliveRequests
 
-def onRequest (config: Config) (connRef: IO.Ref Connection) (onReq: Connection → IO Unit) (request: Request) : IO Bool := do
+def onRequest (config: Config) (connRef: IO.Ref (Connection α)) (onReq: Connection α → IO Unit) (request: Request) : IO Bool := do
   let conn ← connRef.get
   conn.requests.modify (· + 1)
 
@@ -64,7 +64,7 @@ def onRequest (config: Config) (connRef: IO.Ref Connection) (onReq: Connection �
 
   return ¬isClosing
 
-def closeConnectionTimeout (conn: IO.Ref Connection) : IO Unit := do
+def closeConnectionTimeout (conn: IO.Ref (Connection α)) : IO Unit := do
   let connection ← conn.get
   connection.close
 
@@ -72,9 +72,10 @@ def readSocket
   (loop: UV.Loop)
   (config: Config)
   (socket: UV.TCP)
-  (onReq: Connection → IO Unit)
-  (onData: Connection → Chunk → IO Unit)
-  (onTrailer: Connection → Trailers → IO Unit)
+  (onReq: Connection α → IO Unit)
+  (onData: Connection α → Chunk → IO Unit)
+  (onTrailer: Connection α → Trailers → IO Unit)
+  (data : α)
   : UV.IO Unit
   := do
     let timer ← loop.mkTimer
@@ -84,10 +85,10 @@ def readSocket
       socket.read_stop
       socket.stop
 
-    let conn ← Connection.new socket (λ_ => UV.IO.run $ onEnd ())
+    let conn ← Connection.new socket (λ_ => UV.IO.run $ onEnd ()) data
     let connRef ← IO.toUVIO (IO.mkRef conn)
 
-    let readRef : {x y: Type} → (Connection → y → IO x) → y → IO x := λfunc y => do
+    let readRef : {x y: Type} → (Connection α → y → IO x) → y → IO x := λfunc y => do
       let conn ← connRef.get
       func conn y
 
@@ -119,12 +120,14 @@ def readSocket
             IO.toUVIO $ handleError conn err
 
 def server
+  [Inhabited α]
   (host: String)
   (port: UInt16)
   (config: Config := Inhabited.default)
-  (onReq: Connection → IO Unit := (λ_ => pure ()))
-  (onData: Connection → Chunk → IO Unit := (λ_ _ => pure ()))
-  (onEnd: Connection → Trailers → IO Unit := (λ_ _ => pure ()))
+  (onReq: Connection α → IO Unit := (λ_ => pure ()))
+  (onData: Connection α → Chunk → IO Unit := (λ_ _ => pure ()))
+  (onEnd: Connection α → Trailers → IO Unit := (λ_ _ => pure ()))
+  (data : α := Inhabited.default)
   : IO Unit := do
   let go : UV.IO Unit := do
     let loop ← UV.mkLoop
@@ -134,6 +137,6 @@ def server
     server.listen 128 do
       let client ← loop.mkTCP
       server.accept client
-      readSocket loop config client onReq onData onEnd
+      readSocket loop config client onReq onData onEnd data
     let _ ← loop.run
   UV.IO.run go
