@@ -90,3 +90,5 @@ def main : IO Unit :=
 ## Acknowledgements
 
 This library is based on work @algebraic-sofia has done for her
+
+It will be probably moved to the Lean STD.
